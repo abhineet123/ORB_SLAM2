@@ -134,7 +134,9 @@ int main(int argc, char **argv)
 			//std::vector<ORB_SLAM2::MapPoint*> map_points = SLAM.getMap()->GetAllMapPoints();
 			std::vector<ORB_SLAM2::MapPoint*> map_points = SLAM.GetTrackedMapPoints();
 			int n_map_pts = map_points.size();
-			printf("n_map_pts: %d\n", n_map_pts);
+
+			//printf("n_map_pts: %d\n", n_map_pts);
+
 			//pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
 			geometry_msgs::PoseArray pt_array;
@@ -153,7 +155,7 @@ int main(int argc, char **argv)
 
 			pt_array.poses.push_back(camera_pose);
 
-			printf("Done getting camera pose\n");
+			//printf("Done getting camera pose\n");
 
 			for (int pt_id = 1; pt_id <= n_map_pts; ++pt_id){
 
@@ -180,7 +182,9 @@ int main(int argc, char **argv)
 			//pcl::toROSMsg(*pcl_cloud, ros_cloud);
 			//ros_cloud.header.frame_id = "1";
 			//ros_cloud.header.seq = ni;
-			printf("valid map pts: %lu\n", pt_array.poses.size()-1);
+
+			//printf("valid map pts: %lu\n", pt_array.poses.size()-1);
+
 			//printf("ros_cloud size: %d x %d\n", ros_cloud.height, ros_cloud.width);
 			//pub_cloud.publish(ros_cloud);
 			pt_array.header.frame_id = "1";
