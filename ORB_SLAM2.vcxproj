@@ -1,0 +1,260 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{267E62BC-0BB1-45D3-BF2B-4575C5425F56}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>E:\ORB_SLAM2\include;E:\ORB_SLAM2\Thirdparty\DBoW2;E:\ORB_SLAM2\Thirdparty\g2o;H:\local\include;E:\ORB_SLAM2;E:\Pangolin\include;H:\include;G:\ros\indigo\include;E:\ORB_SLAM2\Examples\ROS\ORB_SLAM2;H:\include\pcl-1.7;H:\include\eigen3;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="build\cmakefiles\2.8.12.2\compileridcxx\CMakeCXXCompilerId.cpp" />
+    <ClCompile Include="build\cmakefiles\2.8.12.2\compileridc\CMakeCCompilerId.c" />
+    <ClCompile Include="examples\monocular\mono_euroc.cc" />
+    <ClCompile Include="examples\monocular\mono_kitti.cc" />
+    <ClCompile Include="examples\monocular\mono_tum.cc" />
+    <ClCompile Include="examples\rgb-d\rgbd_tum.cc" />
+    <ClCompile Include="examples\ros\orb_slam2\build\cmakefiles\2.8.12.2\compileridcxx\CMakeCXXCompilerId.cpp" />
+    <ClCompile Include="examples\ros\orb_slam2\build\cmakefiles\2.8.12.2\compileridc\CMakeCCompilerId.c" />
+    <ClCompile Include="examples\ros\orb_slam2\src\ar\ros_mono_ar.cc" />
+    <ClCompile Include="examples\ros\orb_slam2\src\ar\ViewerAR.cc" />
+    <ClCompile Include="examples\ros\orb_slam2\src\ros_mono.cc" />
+    <ClCompile Include="Examples\ROS\ORB_SLAM2\src\ros_mono_pub.cc" />
+    <ClCompile Include="Examples\ROS\ORB_SLAM2\src\ros_mono_sub.cc" />
+    <ClCompile Include="examples\ros\orb_slam2\src\ros_rgbd.cc" />
+    <ClCompile Include="examples\ros\orb_slam2\src\ros_stereo.cc" />
+    <ClCompile Include="examples\stereo\stereo_euroc.cc" />
+    <ClCompile Include="examples\stereo\stereo_kitti.cc" />
+    <ClCompile Include="src\Converter.cc" />
+    <ClCompile Include="src\Frame.cc" />
+    <ClCompile Include="src\FrameDrawer.cc" />
+    <ClCompile Include="src\Initializer.cc" />
+    <ClCompile Include="src\KeyFrame.cc" />
+    <ClCompile Include="src\KeyFrameDatabase.cc" />
+    <ClCompile Include="src\LocalMapping.cc" />
+    <ClCompile Include="src\LoopClosing.cc" />
+    <ClCompile Include="src\Map.cc" />
+    <ClCompile Include="src\MapDrawer.cc" />
+    <ClCompile Include="src\MapPoint.cc" />
+    <ClCompile Include="src\Optimizer.cc" />
+    <ClCompile Include="src\ORBextractor.cc" />
+    <ClCompile Include="src\ORBmatcher.cc" />
+    <ClCompile Include="src\PnPsolver.cc" />
+    <ClCompile Include="src\Sim3Solver.cc" />
+    <ClCompile Include="src\System.cc" />
+    <ClCompile Include="src\Tracking.cc" />
+    <ClCompile Include="src\Viewer.cc" />
+    <ClCompile Include="thirdparty\dbow2\build\cmakefiles\2.8.12.2\compileridcxx\CMakeCXXCompilerId.cpp" />
+    <ClCompile Include="thirdparty\dbow2\build\cmakefiles\2.8.12.2\compileridc\CMakeCCompilerId.c" />
+    <ClCompile Include="thirdparty\dbow2\dbow2\BowVector.cpp" />
+    <ClCompile Include="thirdparty\dbow2\dbow2\FeatureVector.cpp" />
+    <ClCompile Include="thirdparty\dbow2\dbow2\FORB.cpp" />
+    <ClCompile Include="thirdparty\dbow2\dbow2\ScoringObject.cpp" />
+    <ClCompile Include="thirdparty\dbow2\dutils\Random.cpp" />
+    <ClCompile Include="thirdparty\dbow2\dutils\Timestamp.cpp" />
+    <ClCompile Include="thirdparty\g2o\build\cmakefiles\2.8.12.2\compileridcxx\CMakeCXXCompilerId.cpp" />
+    <ClCompile Include="thirdparty\g2o\build\cmakefiles\2.8.12.2\compileridc\CMakeCCompilerId.c" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\batch_stats.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\cache.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\estimate_propagator.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\factory.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\hyper_dijkstra.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\hyper_graph.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\hyper_graph_action.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\jacobian_workspace.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\marginal_covariance_cholesky.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\matrix_structure.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\optimizable_graph.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\optimization_algorithm.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\optimization_algorithm_dogleg.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\optimization_algorithm_factory.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\optimization_algorithm_gauss_newton.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\optimization_algorithm_levenberg.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\optimization_algorithm_with_hessian.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\parameter.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\parameter_container.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\robust_kernel.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\robust_kernel_factory.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\robust_kernel_impl.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\solver.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\sparse_block_matrix_test.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\core\sparse_optimizer.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\stuff\os_specific.c" />
+    <ClCompile Include="thirdparty\g2o\g2o\stuff\property.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\stuff\string_tools.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\stuff\timeutil.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\types\types_sba.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\types\types_seven_dof_expmap.cpp" />
+    <ClCompile Include="thirdparty\g2o\g2o\types\types_six_dof_expmap.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="examples\ros\orb_slam2\src\ar\ViewerAR.h" />
+    <ClInclude Include="include\Converter.h" />
+    <ClInclude Include="include\Frame.h" />
+    <ClInclude Include="include\FrameDrawer.h" />
+    <ClInclude Include="include\Initializer.h" />
+    <ClInclude Include="include\KeyFrame.h" />
+    <ClInclude Include="include\KeyFrameDatabase.h" />
+    <ClInclude Include="include\LocalMapping.h" />
+    <ClInclude Include="include\LoopClosing.h" />
+    <ClInclude Include="include\Map.h" />
+    <ClInclude Include="include\MapDrawer.h" />
+    <ClInclude Include="include\MapPoint.h" />
+    <ClInclude Include="include\Optimizer.h" />
+    <ClInclude Include="include\ORBextractor.h" />
+    <ClInclude Include="include\ORBmatcher.h" />
+    <ClInclude Include="include\ORBVocabulary.h" />
+    <ClInclude Include="include\PnPsolver.h" />
+    <ClInclude Include="include\Sim3Solver.h" />
+    <ClInclude Include="include\System.h" />
+    <ClInclude Include="include\Tracking.h" />
+    <ClInclude Include="include\Viewer.h" />
+    <ClInclude Include="thirdparty\dbow2\dbow2\BowVector.h" />
+    <ClInclude Include="thirdparty\dbow2\dbow2\FClass.h" />
+    <ClInclude Include="thirdparty\dbow2\dbow2\FeatureVector.h" />
+    <ClInclude Include="thirdparty\dbow2\dbow2\FORB.h" />
+    <ClInclude Include="thirdparty\dbow2\dbow2\ScoringObject.h" />
+    <ClInclude Include="thirdparty\dbow2\dbow2\TemplatedVocabulary.h" />
+    <ClInclude Include="thirdparty\dbow2\dutils\Random.h" />
+    <ClInclude Include="thirdparty\dbow2\dutils\Timestamp.h" />
+    <ClInclude Include="thirdparty\g2o\config.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\base_binary_edge.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\base_binary_edge.hpp" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\base_edge.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\base_multi_edge.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\base_multi_edge.hpp" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\base_unary_edge.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\base_unary_edge.hpp" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\base_vertex.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\base_vertex.hpp" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\batch_stats.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\block_solver.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\block_solver.hpp" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\cache.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\creators.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\eigen_types.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\estimate_propagator.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\factory.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\hyper_dijkstra.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\hyper_graph.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\hyper_graph_action.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\jacobian_workspace.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\linear_solver.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\marginal_covariance_cholesky.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\matrix_operations.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\matrix_structure.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\openmp_mutex.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\optimizable_graph.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\optimization_algorithm.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\optimization_algorithm_dogleg.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\optimization_algorithm_factory.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\optimization_algorithm_gauss_newton.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\optimization_algorithm_levenberg.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\optimization_algorithm_property.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\optimization_algorithm_with_hessian.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\parameter.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\parameter_container.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\robust_kernel.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\robust_kernel_factory.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\robust_kernel_impl.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\solver.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\sparse_block_matrix.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\sparse_block_matrix.hpp" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\sparse_block_matrix_ccs.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\sparse_block_matrix_diagonal.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\core\sparse_optimizer.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\solvers\linear_solver_dense.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\solvers\linear_solver_eigen.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\stuff\color_macros.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\stuff\macros.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\stuff\misc.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\stuff\os_specific.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\stuff\property.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\stuff\string_tools.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\stuff\timeutil.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\types\se3quat.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\types\se3_ops.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\types\se3_ops.hpp" />
+    <ClInclude Include="thirdparty\g2o\g2o\types\sim3.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\types\types_sba.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\types\types_seven_dof_expmap.h" />
+    <ClInclude Include="thirdparty\g2o\g2o\types\types_six_dof_expmap.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="build\cmakefiles\2.8.12.2\CMakeDetermineCompilerABI_C.bin" />
+    <None Include="build\cmakefiles\2.8.12.2\CMakeDetermineCompilerABI_CXX.bin" />
+    <None Include="examples\ros\orb_slam2\build\cmakefiles\2.8.12.2\CMakeDetermineCompilerABI_C.bin" />
+    <None Include="examples\ros\orb_slam2\build\cmakefiles\2.8.12.2\CMakeDetermineCompilerABI_CXX.bin" />
+    <None Include="thirdparty\dbow2\build\cmakefiles\2.8.12.2\CMakeDetermineCompilerABI_C.bin" />
+    <None Include="thirdparty\dbow2\build\cmakefiles\2.8.12.2\CMakeDetermineCompilerABI_CXX.bin" />
+    <None Include="thirdparty\g2o\build\cmakefiles\2.8.12.2\CMakeDetermineCompilerABI_C.bin" />
+    <None Include="thirdparty\g2o\build\cmakefiles\2.8.12.2\CMakeDetermineCompilerABI_CXX.bin" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

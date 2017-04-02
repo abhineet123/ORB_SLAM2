@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="ORB_SLAM2" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/ORB_SLAM2" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/ORB_SLAM2" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+		</Compiler>
+		<Unit filename="Examples/Monocular/mono_euroc.cc" />
+		<Unit filename="Examples/Monocular/mono_kitti.cc" />
+		<Unit filename="Examples/Monocular/mono_tum.cc" />
+		<Unit filename="Examples/RGB-D/rgbd_tum.cc" />
+		<Unit filename="Examples/ROS/ORB_SLAM2/build/CMakeFiles/2.8.12.2/CompilerIdC/CMakeCCompilerId.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="Examples/ROS/ORB_SLAM2/build/CMakeFiles/2.8.12.2/CompilerIdCXX/CMakeCXXCompilerId.cpp" />
+		<Unit filename="Examples/ROS/ORB_SLAM2/src/AR/ViewerAR.cc" />
+		<Unit filename="Examples/ROS/ORB_SLAM2/src/AR/ViewerAR.h" />
+		<Unit filename="Examples/ROS/ORB_SLAM2/src/AR/ros_mono_ar.cc" />
+		<Unit filename="Examples/ROS/ORB_SLAM2/src/ros_mono.cc" />
+		<Unit filename="Examples/ROS/ORB_SLAM2/src/ros_rgbd.cc" />
+		<Unit filename="Examples/ROS/ORB_SLAM2/src/ros_stereo.cc" />
+		<Unit filename="Examples/Stereo/stereo_euroc.cc" />
+		<Unit filename="Examples/Stereo/stereo_kitti.cc" />
+		<Unit filename="Thirdparty/DBoW2/DBoW2/BowVector.cpp" />
+		<Unit filename="Thirdparty/DBoW2/DBoW2/BowVector.h" />
+		<Unit filename="Thirdparty/DBoW2/DBoW2/FClass.h" />
+		<Unit filename="Thirdparty/DBoW2/DBoW2/FORB.cpp" />
+		<Unit filename="Thirdparty/DBoW2/DBoW2/FORB.h" />
+		<Unit filename="Thirdparty/DBoW2/DBoW2/FeatureVector.cpp" />
+		<Unit filename="Thirdparty/DBoW2/DBoW2/FeatureVector.h" />
+		<Unit filename="Thirdparty/DBoW2/DBoW2/ScoringObject.cpp" />
+		<Unit filename="Thirdparty/DBoW2/DBoW2/ScoringObject.h" />
+		<Unit filename="Thirdparty/DBoW2/DBoW2/TemplatedVocabulary.h" />
+		<Unit filename="Thirdparty/DBoW2/DUtils/Random.cpp" />
+		<Unit filename="Thirdparty/DBoW2/DUtils/Random.h" />
+		<Unit filename="Thirdparty/DBoW2/DUtils/Timestamp.cpp" />
+		<Unit filename="Thirdparty/DBoW2/DUtils/Timestamp.h" />
+		<Unit filename="Thirdparty/DBoW2/build/CMakeFiles/2.8.12.2/CompilerIdC/CMakeCCompilerId.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="Thirdparty/DBoW2/build/CMakeFiles/2.8.12.2/CompilerIdCXX/CMakeCXXCompilerId.cpp" />
+		<Unit filename="Thirdparty/g2o/build/CMakeFiles/2.8.12.2/CompilerIdC/CMakeCCompilerId.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="Thirdparty/g2o/build/CMakeFiles/2.8.12.2/CompilerIdCXX/CMakeCXXCompilerId.cpp" />
+		<Unit filename="Thirdparty/g2o/config.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/base_binary_edge.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/base_binary_edge.hpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/base_edge.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/base_multi_edge.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/base_multi_edge.hpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/base_unary_edge.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/base_unary_edge.hpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/base_vertex.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/base_vertex.hpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/batch_stats.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/batch_stats.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/block_solver.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/block_solver.hpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/cache.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/cache.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/creators.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/eigen_types.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/estimate_propagator.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/estimate_propagator.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/factory.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/factory.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/hyper_dijkstra.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/hyper_dijkstra.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/hyper_graph.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/hyper_graph.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/hyper_graph_action.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/hyper_graph_action.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/jacobian_workspace.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/jacobian_workspace.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/linear_solver.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/marginal_covariance_cholesky.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/marginal_covariance_cholesky.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/matrix_operations.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/matrix_structure.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/matrix_structure.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/openmp_mutex.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/optimizable_graph.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/optimizable_graph.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/optimization_algorithm.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/optimization_algorithm.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/optimization_algorithm_dogleg.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/optimization_algorithm_dogleg.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/optimization_algorithm_factory.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/optimization_algorithm_factory.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/optimization_algorithm_gauss_newton.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/optimization_algorithm_gauss_newton.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/optimization_algorithm_levenberg.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/optimization_algorithm_levenberg.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/optimization_algorithm_property.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/optimization_algorithm_with_hessian.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/optimization_algorithm_with_hessian.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/parameter.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/parameter.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/parameter_container.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/parameter_container.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/robust_kernel.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/robust_kernel.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/robust_kernel_factory.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/robust_kernel_factory.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/robust_kernel_impl.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/robust_kernel_impl.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/solver.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/solver.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/sparse_block_matrix.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/sparse_block_matrix.hpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/sparse_block_matrix_ccs.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/sparse_block_matrix_diagonal.h" />
+		<Unit filename="Thirdparty/g2o/g2o/core/sparse_block_matrix_test.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/sparse_optimizer.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/core/sparse_optimizer.h" />
+		<Unit filename="Thirdparty/g2o/g2o/solvers/linear_solver_dense.h" />
+		<Unit filename="Thirdparty/g2o/g2o/solvers/linear_solver_eigen.h" />
+		<Unit filename="Thirdparty/g2o/g2o/stuff/color_macros.h" />
+		<Unit filename="Thirdparty/g2o/g2o/stuff/macros.h" />
+		<Unit filename="Thirdparty/g2o/g2o/stuff/misc.h" />
+		<Unit filename="Thirdparty/g2o/g2o/stuff/os_specific.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="Thirdparty/g2o/g2o/stuff/os_specific.h" />
+		<Unit filename="Thirdparty/g2o/g2o/stuff/property.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/stuff/property.h" />
+		<Unit filename="Thirdparty/g2o/g2o/stuff/string_tools.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/stuff/string_tools.h" />
+		<Unit filename="Thirdparty/g2o/g2o/stuff/timeutil.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/stuff/timeutil.h" />
+		<Unit filename="Thirdparty/g2o/g2o/types/se3_ops.h" />
+		<Unit filename="Thirdparty/g2o/g2o/types/se3_ops.hpp" />
+		<Unit filename="Thirdparty/g2o/g2o/types/se3quat.h" />
+		<Unit filename="Thirdparty/g2o/g2o/types/sim3.h" />
+		<Unit filename="Thirdparty/g2o/g2o/types/types_sba.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/types/types_sba.h" />
+		<Unit filename="Thirdparty/g2o/g2o/types/types_seven_dof_expmap.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/types/types_seven_dof_expmap.h" />
+		<Unit filename="Thirdparty/g2o/g2o/types/types_six_dof_expmap.cpp" />
+		<Unit filename="Thirdparty/g2o/g2o/types/types_six_dof_expmap.h" />
+		<Unit filename="build/CMakeFiles/2.8.12.2/CompilerIdC/CMakeCCompilerId.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="build/CMakeFiles/2.8.12.2/CompilerIdCXX/CMakeCXXCompilerId.cpp" />
+		<Unit filename="include/Converter.h" />
+		<Unit filename="include/Frame.h" />
+		<Unit filename="include/FrameDrawer.h" />
+		<Unit filename="include/Initializer.h" />
+		<Unit filename="include/KeyFrame.h" />
+		<Unit filename="include/KeyFrameDatabase.h" />
+		<Unit filename="include/LocalMapping.h" />
+		<Unit filename="include/LoopClosing.h" />
+		<Unit filename="include/Map.h" />
+		<Unit filename="include/MapDrawer.h" />
+		<Unit filename="include/MapPoint.h" />
+		<Unit filename="include/ORBVocabulary.h" />
+		<Unit filename="include/ORBextractor.h" />
+		<Unit filename="include/ORBmatcher.h" />
+		<Unit filename="include/Optimizer.h" />
+		<Unit filename="include/PnPsolver.h" />
+		<Unit filename="include/Sim3Solver.h" />
+		<Unit filename="include/System.h" />
+		<Unit filename="include/Tracking.h" />
+		<Unit filename="include/Viewer.h" />
+		<Unit filename="src/Converter.cc" />
+		<Unit filename="src/Frame.cc" />
+		<Unit filename="src/FrameDrawer.cc" />
+		<Unit filename="src/Initializer.cc" />
+		<Unit filename="src/KeyFrame.cc" />
+		<Unit filename="src/KeyFrameDatabase.cc" />
+		<Unit filename="src/LocalMapping.cc" />
+		<Unit filename="src/LoopClosing.cc" />
+		<Unit filename="src/Map.cc" />
+		<Unit filename="src/MapDrawer.cc" />
+		<Unit filename="src/MapPoint.cc" />
+		<Unit filename="src/ORBextractor.cc" />
+		<Unit filename="src/ORBmatcher.cc" />
+		<Unit filename="src/Optimizer.cc" />
+		<Unit filename="src/PnPsolver.cc" />
+		<Unit filename="src/Sim3Solver.cc" />
+		<Unit filename="src/System.cc" />
+		<Unit filename="src/Tracking.cc" />
+		<Unit filename="src/Viewer.cc" />
+		<Extensions>
+			<code_completion />
+			<debugger />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>
