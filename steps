@@ -1,0 +1,70 @@
+install usb_cam with:
+ sudo apt-get install ros-indigo-usb-cam
+
+copy the launch file:
+/opt/ros/indigo/share/usb_cam/launch/usb_cam-test.launch
+to an editable location and change video_device to /dev/video1 to use the external camera
+
+run
+roslaunch ~/usb_cam-test.launch
+to start it
+
+add:
+export ROS_PACKAGE_PATH=${ROS_PACKAGE_PATH}:/home/abhineet/ORB_SLAM2/Examples/ROS
+export LIBRARY_PATH=${LIBRARY_PATH}:/home/abhineet/ORB_SLAM2/lib:/home/abhineet/ORB_SLAM2/Thirdparty/DBoW2/lib:/home/abhineet/ORB_SLAM2/Thirdparty/g2o/lib
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/home/abhineet/ORB_SLAM2/lib:/home/abhineet/ORB_SLAM2/Thirdparty/DBoW2/lib:/home/abhineet/ORB_SLAM2/Thirdparty/g2o/lib
+to bashrc
+
+run orb slam with:
+rosrun ORB_SLAM2 Mono Vocabulary/ORBvoc.txt Examples/Monocular/mono.yaml /camera/image_raw:=usb_cam/image_raw
+using params:
+
+# Camera calibration and distortion parameters (OpenCV) 
+Camera.fx: 674.828820
+Camera.fy: 671.076483
+Camera.cx: 313.837639
+Camera.cy: 249.457471
+
+Camera.k1: -0.074566
+Camera.k2: 0.099668
+Camera.p1: -0.000740
+Camera.p2: -0.002609
+Camera.k3: 0.000000
+
+# Camera frames per second 
+Camera.fps: 30.0
+
+# Color order of the images (0: BGR, 1: RGB. It is ignored if images are grayscale)
+Camera.RGB: 1
+
+gmapping launch location:
+/opt/ros/indigo/share/turtlebot_navigation/launch/gmapping_demo.launch
+
+run orb slam on KITTI with:
+./Examples/Monocular/mono_kitti Vocabulary/ORBvoc.txt Examples/Monocular/KITTI00-02.yaml /home/abhineet/KITTI/00
+./Examples/Monocular/mono_kitti Vocabulary/ORBvoc.txt Examples/Monocular/KITTI04-12.yaml /home/abhineet/KITTI/05
+run on TUM-RGBD with:
+./Examples/Monocular/mono_tum Vocabulary/ORBvoc.txt Examples/Monocular/TUM3.yaml /home/abhineet/TUM-RGBD/rgbd_dataset_freiburg3_walking_halfsphere
+
+navigate using the map and visualize with:
+roslaunch turtlebot_gazebo turtlebot_world.launch
+or
+roslaunch turtlebot_gazebo turtlebot_world.launch world_file:=/opt/ros/indigo/share/turtlebot_gazebo/worlds/empty.world
+for empty world
+roslaunch turtlebot_gazebo amcl_demo.launch map_file:=/home/abhineet/ORB_SLAM2/grid_map.yaml
+roslaunch turtlebot_rviz_launchers view_navigation.launch
+
+running orb slam with gmapping:
+rosrun ORB_SLAM2 Mono Vocabulary/ORBvoc.txt Examples/Monocular/KITTI00-02.yaml  /home/abhineet/KITTI/00
+rosrun pointcloud_to_laserscan pointcloud_to_laserscan_node
+rosrun gmapping slam_gmapping
+rosrun rviz rviz
+Displays->Add->Map
+set Topic to /map
+
+start publisher:
+rosrun ORB_SLAM2 Monopub Vocabulary/ORBvoc.txt Examples/Monocular/KITTI00-02.yaml /home/abhineet/KITTI/00
+rosrun ORB_SLAM2 Monosub 3 5 85 -75 144 -35 0.55 0.50
+
+
+
