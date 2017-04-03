@@ -52,13 +52,33 @@ void kfCallback(const geometry_msgs::PoseStamped::ConstPtr& camera_pose){
 	ROS_INFO("I heard: [%s]{%d}", camera_pose->header.frame_id.c_str(),
 		camera_pose->header.seq);
 }
+void saveMap(unsigned int id = 0) {
+	if (id > 0) {
+		cv::imwrite("grid_map_" + to_string(id) + ".jpg", grid_map);
+		cv::imwrite("grid_map_thresh_" + to_string(id) + ".jpg", grid_map_thresh);
+		cv::imwrite("grid_map_thresh_resized" + to_string(id) + ".jpg", grid_map_thresh_resized);
+	}
+	else {
+		cv::imwrite("grid_map.jpg", grid_map);
+		cv::imwrite("grid_map_thresh.jpg", grid_map_thresh);
+		cv::imwrite("grid_map_thresh_resized.jpg", grid_map_thresh_resized);
+	}
+
+}
 void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 	//ROS_INFO("Received points and pose: [%s]{%d}", pts_and_pose->header.frame_id.c_str(),
 	//	pts_and_pose->header.seq);
+	if (pts_and_pose->header.seq==0) {
+		cv::destroyAllWindows();
+		saveMap();
+		ros::shutdown();
+		exit(0);
+	}
 	updateGridMap(pts_and_pose);
 }
 void parseParams(int argc, char **argv);
 void printParams();
+
 
 int main(int argc, char **argv){
 	ros::init(argc, argv, "Monosub");
@@ -95,9 +115,8 @@ int main(int argc, char **argv){
 
 	ros::spin();
 	ros::shutdown();
-
-	cv::imwrite("grid_map_thresh.jpg", grid_map_thresh);
-	cv::imwrite("grid_map_thresh_resized.jpg", grid_map_thresh_resized);
+	cv::destroyAllWindows();
+	saveMap();
 
 	return 0;
 }
@@ -107,7 +126,7 @@ void getMixMax(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose,
 
 	min_pt.x = min_pt.y = min_pt.z = std::numeric_limits<double>::infinity();
 	max_pt.x = max_pt.y = max_pt.z = -std::numeric_limits<double>::infinity();
-	for (int i = 0; i < pts_and_pose->poses.size(); ++i){
+	for (unsigned int i = 0; i < pts_and_pose->poses.size(); ++i){
 		const geometry_msgs::Point& curr_pt = pts_and_pose->poses[i].position;
 		if (curr_pt.x < min_pt.x) { min_pt.x = curr_pt.x; }
 		if (curr_pt.y < min_pt.y) { min_pt.y = curr_pt.y; }
@@ -149,7 +168,7 @@ void updateGridMap(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 	if (kf_pos_grid_z < 0 || kf_pos_grid_z >= h)
 		return;
 
-	for (int pt_id = 1; pt_id < pts_and_pose->poses.size(); ++pt_id){
+	for (unsigned int pt_id = 1; pt_id < pts_and_pose->poses.size(); ++pt_id){
 
 		const geometry_msgs::Point &curr_pt = pts_and_pose->poses[pt_id].position;
 
@@ -232,6 +251,7 @@ void updateGridMap(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 	cv::imshow("grid_map_thresh_resized", grid_map_thresh_resized);
 	int key = cv::waitKey(1);
 	if(key==27) {
+		cv::destroyAllWindows();
 		ros::shutdown();
 		exit(0);
 	}
@@ -250,6 +270,8 @@ void updateGridMap(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 	else if (key == 'O') {
 		occupied_thresh -= 1;
 		printf("Setting occupied_thresh to: %f\n", occupied_thresh);
+	} else if (key == 's') {
+		saveMap(pts_and_pose->header.seq);
 	}
 	//cout << endl << "Grid map saved!" << endl;
 }

@@ -192,6 +192,10 @@ int main(int argc, char **argv)
 			pub_pts_and_pose.publish(pt_array);
 			//pub_kf.publish(camera_pose);
 		}
+		//cv::imshow("Current Image", im);
+		//if (cv::waitKey(1) == 27) {
+		//	break;
+		//}
 		ros::spinOnce();
 		loop_rate.sleep();
 	}
@@ -199,7 +203,9 @@ int main(int argc, char **argv)
 
     // Stop all threads
     SLAM.Shutdown();
-
+	geometry_msgs::PoseArray pt_array;
+	pt_array.header.seq = 0;
+	pub_pts_and_pose.publish(pt_array);
     // Save camera trajectory
     SLAM.SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
 

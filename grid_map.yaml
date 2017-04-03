@@ -1,6 +1,6 @@
 image: grid_map_kitti_00_filtered_0_scale_3_resize_5_0.50_0.55.pgm
-resolution: 0.10000
-origin: [-13.800000, -13.800000, 0.000000]
+resolution: 0.020
+origin: [0, 0, 0.000000]
 negate: 0
 occupied_thresh: 0.50
 free_thresh: 0.45
