@@ -101,6 +101,7 @@ int main(int argc, char **argv){
 			if (argc > 4){
 				image_topic = std::string(argv[4]);
 			}
+			printf("Reading images from topic %s\n", image_topic.c_str());
 		}
 	}
 	else {

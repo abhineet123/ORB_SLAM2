@@ -69,9 +69,14 @@ rosrun ORB_SLAM2 Monopub Vocabulary/ORBvoc.txt Examples/Monocular/mono.yaml 0
 start publisher with default topic (/camera/image_raw):
 rosrun ORB_SLAM2 Monopub Vocabulary/ORBvoc.txt Examples/Monocular/mono.yaml -1
 start publisher with custom topic:
-rosrun ORB_SLAM2 Monopub Vocabulary/ORBvoc.txt Examples/Monocular/mono.yaml -1 /camera/image_raw
+rosrun ORB_SLAM2 Monopub Vocabulary/ORBvoc.txt Examples/Monocular/demo_cam.yaml -1 /camera/image_raw
 start subscriber:
 rosrun ORB_SLAM2 Monosub 3 5 85 -75 144 -35 0.55 0.50
+
+running rosbag of recording:
+rosbag play "/media/abhineet/Win 8/bags/2017-04-03-20-35-36.bag"
+rosbag play "/media/abhineet/Win 8/bags/2017-04-03-13-37-07.bag"
+
 
 
 
