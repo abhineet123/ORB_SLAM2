@@ -218,6 +218,9 @@ namespace ORB_SLAM2
 
 	cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp)
 	{
+		mpLoopCloser->loop_detected = false;
+		mpTracker->mCurrentFrame.is_keyframe = false;
+
 		if (mSensor != MONOCULAR)
 		{
 			cerr << "ERROR: you called TrackMonocular but input sensor was not set to Monocular." << endl;
