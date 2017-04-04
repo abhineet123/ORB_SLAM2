@@ -80,12 +80,12 @@ void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 void loopClosingCallback(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts){
 	//ROS_INFO("Received points and pose: [%s]{%d}", pts_and_pose->header.frame_id.c_str(),
 	//	pts_and_pose->header.seq);
-	if (all_kf_and_pts->header.seq == 0) {
-		cv::destroyAllWindows();
-		saveMap();
-		ros::shutdown();
-		exit(0);
-	}
+	//if (all_kf_and_pts->header.seq == 0) {
+	//	cv::destroyAllWindows();
+	//	saveMap();
+	//	ros::shutdown();
+	//	exit(0);
+	//}
 	resetGridMap(all_kf_and_pts);
 }
 void parseParams(int argc, char **argv);
