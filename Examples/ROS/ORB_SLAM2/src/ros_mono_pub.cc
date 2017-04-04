@@ -124,8 +124,11 @@ int main(int argc, char **argv)
 		}
 		// Pass the image to the SLAM system
 		cv::Mat curr_pose = SLAM.TrackMonocular(im, tframe);
-	
-		if (SLAM.getTracker()->mCurrentFrame.is_keyframe) {
+
+		if (SLAM.getLoopClosing()->loop_detected) {
+			SLAM.getLoopClosing()->loop_detected = false;
+
+		} else if (SLAM.getTracker()->mCurrentFrame.is_keyframe) {
 
 			ORB_SLAM2::KeyFrame* pKF = SLAM.getTracker()->mCurrentFrame.mpReferenceKF;
 
