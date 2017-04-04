@@ -62,8 +62,11 @@ rosrun rviz rviz
 Displays->Add->Map
 set Topic to /map
 
-start publisher:
+start publisher with dataset:
 rosrun ORB_SLAM2 Monopub Vocabulary/ORBvoc.txt Examples/Monocular/KITTI00-02.yaml /home/abhineet/KITTI/00
+start publisher with camera:
+rosrun ORB_SLAM2 Monopub Vocabulary/ORBvoc.txt Examples/Monocular/mono.yaml 0
+start subscriber:
 rosrun ORB_SLAM2 Monosub 3 5 85 -75 144 -35 0.55 0.50
 
 

@@ -23,6 +23,7 @@
 #include<algorithm>
 #include<fstream>
 #include<chrono>
+#include <time.h>
 
 #include<ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
@@ -45,20 +46,9 @@
 
 void LoadImages(const string &strSequence, vector<string> &vstrImageFilenames,
 	vector<double> &vTimestamps);
+inline bool isInteger(const std::string & s);
 
 using namespace std;
-
-class ImageGrabber
-{
-public:
-	ImageGrabber(ORB_SLAM2::System* pSLAM, ros::Publisher *_pub) :
-		mpSLAM(pSLAM), pub(_pub){}
-
-    void GrabImage(const sensor_msgs::ImageConstPtr& msg);
-
-    ORB_SLAM2::System* mpSLAM;
-	ros::Publisher *pub;
-};
 
 int main(int argc, char **argv)
 {
@@ -66,15 +56,30 @@ int main(int argc, char **argv)
     ros::start();
 
 	if (argc != 4){
-		cerr << endl << "Usage: rosrun ORB_SLAM2 Mono path_to_vocabulary path_to_settings path_to_sequence" << endl;
+		cerr << endl << "Usage: rosrun ORB_SLAM2 Monopub path_to_vocabulary path_to_settings path_to_sequence/camera_id" << endl;
 		return 1;
 	}
-
+	cv::VideoCapture cap_obj;
+	bool read_from_camera = false;
 	// Retrieve paths to images
 	vector<string> vstrImageFilenames;
 	vector<double> vTimestamps;
-	LoadImages(string(argv[3]), vstrImageFilenames, vTimestamps);
-
+	if (isInteger(std::string(argv[3]))) {
+		read_from_camera = true;
+		int camera_id = atoi(argv[3]);
+		printf("Reading images from camera with id %d\n", camera_id);
+		cap_obj.open(camera_id);
+		if (!(cap_obj.isOpened())) {
+			printf("Camera stream could not be initialized successfully\n");
+			ros::shutdown();
+			return EXIT_FAILURE;
+		}
+		int img_height = cap_obj.get(CV_CAP_PROP_FRAME_HEIGHT);
+		int img_width = cap_obj.get(CV_CAP_PROP_FRAME_WIDTH);
+		printf("Images are of size: %d x %d\n", img_width, img_height);
+	} else {
+		LoadImages(string(argv[3]), vstrImageFilenames, vTimestamps);
+	}
 	int n_images = vstrImageFilenames.size();
 
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
@@ -91,11 +96,28 @@ int main(int argc, char **argv)
 	// Main loop
 	ros::Rate loop_rate(5);
 	cv::Mat im;
-	for (int frame_id = 0; frame_id < n_images; ++frame_id){
-		// Read image from file
-		im = cv::imread(vstrImageFilenames[frame_id], CV_LOAD_IMAGE_UNCHANGED);
-		double tframe = vTimestamps[frame_id];
-
+	double tframe = 0;
+#ifdef COMPILEDWITHC11
+	std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+#else
+	std::chrono::monotonic_clock::time_point t1 = std::chrono::monotonic_clock::now();
+#endif
+	for (int frame_id = 0; read_from_camera || frame_id < n_images; ++frame_id){
+		
+		if (read_from_camera) {
+			cap_obj.read(im);
+#ifdef COMPILEDWITHC11
+			std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
+#else
+			std::chrono::monotonic_clock::time_point t2 = std::chrono::monotonic_clock::now();
+#endif
+			tframe = std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();
+			//printf("fps: %f\n", 1.0 / tframe);
+		} else {
+			// Read image from file
+			im = cv::imread(vstrImageFilenames[frame_id], CV_LOAD_IMAGE_UNCHANGED);
+			tframe = vTimestamps[frame_id];
+		}
 		if (im.empty()){
 			cerr << endl << "Failed to load image at: " << vstrImageFilenames[frame_id] << endl;
 			return 1;
@@ -192,7 +214,7 @@ int main(int argc, char **argv)
 			pub_pts_and_pose.publish(pt_array);
 			//pub_kf.publish(camera_pose);
 		}
-		//cv::imshow("Current Image", im);
+		//cv::imshow("Press escape to exit", im);
 		//if (cv::waitKey(1) == 27) {
 		//	break;
 		//}
@@ -214,23 +236,14 @@ int main(int argc, char **argv)
     return 0;
 }
 
-void ImageGrabber::GrabImage(const sensor_msgs::ImageConstPtr& msg)
-{
-    // Copy the ros image message to cv::Mat.
-    cv_bridge::CvImageConstPtr cv_ptr;
-    try
-    {
-        cv_ptr = cv_bridge::toCvShare(msg);
-    }
-    catch (cv_bridge::Exception& e)
-    {
-        ROS_ERROR("cv_bridge exception: %s", e.what());
-        return;
-    }
+inline bool isInteger(const std::string & s){
+	if (s.empty() || ((!isdigit(s[0])) && (s[0] != '-') && (s[0] != '+'))) return false;
 
-    mpSLAM->TrackMonocular(cv_ptr->image,cv_ptr->header.stamp.toSec());
+	char * p;
+	strtol(s.c_str(), &p, 10);
+
+	return (*p == 0);
 }
-
 
 void LoadImages(const string &strPathToSequence, vector<string> &vstrImageFilenames, vector<double> &vTimestamps)
 {
