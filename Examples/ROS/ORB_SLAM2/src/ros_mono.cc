@@ -68,8 +68,12 @@ int main(int argc, char **argv)
     // Stop all threads
     SLAM.Shutdown();
 
-    // Save camera trajectory
-    SLAM.SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
+	// Save 3D points as obj file
+	SLAM.getMap()->Save("cam_map_pts_out.obj");
+	// Save 3D points and timestamps of all keyframes they are visible in
+	SLAM.getMap()->SaveWithTimestamps("cam_map_pts_and_keyframes.txt");
+	// Save camera trajectory
+	SLAM.SaveKeyFrameTrajectoryTUM("cam_key_frame_trajectory.txt");
 
     ros::shutdown();
 

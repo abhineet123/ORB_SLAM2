@@ -24,26 +24,101 @@
 // parameters
 float scale_factor = 3;
 float resize_factor = 5;
-float grid_max_x = 29.0;
-float grid_min_x = -25.0;
-float grid_max_z = 48.0;
-float grid_min_z = -12.0;
+float cloud_max_x = 10;
+float cloud_min_x = -10.0;
+float cloud_max_z = 16;
+float cloud_min_z = -5;
 float free_thresh = 0.55;
 float occupied_thresh = 0.50;
+float thresh_diff = 0.01;
 float upper_left_x = -1.5;
 float upper_left_y = -2.5;
 const int resolution = 10;
+unsigned int use_local_counters = 0;
 
-cv::Mat occupied_counter, visit_counter;
+float grid_max_x, grid_min_x,grid_max_z, grid_min_z;
+cv::Mat global_occupied_counter, global_visit_counter;
+cv::Mat local_occupied_counter, local_visit_counter;
+cv::Mat local_map_pt_mask;
 cv::Mat grid_map, grid_map_thresh, grid_map_thresh_resized;
 float norm_factor_x, norm_factor_z;
 int h, w;
+unsigned int n_kf_received;
 
 using namespace std;
 
 void updateGridMap(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose);
 void resetGridMap(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose);
+void cloudCallback(const sensor_msgs::PointCloud2::ConstPtr& pt_cloud);
+void kfCallback(const geometry_msgs::PoseStamped::ConstPtr& camera_pose);
+void saveMap(unsigned int id = 0);
+void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose);
+void loopClosingCallback(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts);
+void parseParams(int argc, char **argv);
+void printParams();
+void showGridMap(unsigned int id = 0);
+void getMixMax(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose,
+	geometry_msgs::Point& min_pt, geometry_msgs::Point& max_pt);
+void processMapPt(const geometry_msgs::Point &curr_pt, cv::Mat &occupied,
+	cv::Mat &visited, cv::Mat &pt_mask, int kf_pos_grid_x, int kf_pos_grid_z);
+void processMapPts(const std::vector<geometry_msgs::Pose> &pts, int start_id,
+	int kf_pos_grid_x, int kf_pos_grid_z);
+void getGridMap();
 
+
+int main(int argc, char **argv){
+	ros::init(argc, argv, "Monosub");
+	ros::start();
+
+	parseParams(argc, argv);
+	printParams();
+
+	grid_max_x = cloud_max_x*scale_factor;
+	grid_min_x = cloud_min_x*scale_factor;
+	grid_max_z = cloud_max_z*scale_factor;
+	grid_min_z = cloud_min_z*scale_factor;
+	printf("grid_max: %f, %f\t grid_min: %f, %f\n", grid_max_x, grid_max_z, grid_min_x, grid_min_z);
+
+	double grid_res_x = grid_max_x - grid_min_x, grid_res_z = grid_max_z - grid_min_z;
+
+	h = grid_res_z;
+	w = grid_res_x;
+	printf("grid_size: (%d, %d)\n", h, w);
+	n_kf_received = 0;
+
+	global_occupied_counter.create(h, w, CV_32SC1);
+	global_visit_counter.create(h, w, CV_32SC1);
+	global_occupied_counter.setTo(cv::Scalar(0));
+	global_visit_counter.setTo(cv::Scalar(0));
+
+	grid_map.create(h, w, CV_32FC1);
+	grid_map_thresh.create(h, w, CV_8UC1);
+	grid_map_thresh_resized.create(h*resize_factor, w*resize_factor, CV_8UC1);
+	printf("output_size: (%d, %d)\n", grid_map_thresh_resized.rows, grid_map_thresh_resized.cols);
+
+	local_occupied_counter.create(h, w, CV_32SC1);
+	local_visit_counter.create(h, w, CV_32SC1);
+	local_map_pt_mask.create(h, w, CV_8UC1);
+
+	norm_factor_x = float(grid_res_x - 1) / float(grid_max_x - grid_min_x);
+	norm_factor_z = float(grid_res_z - 1) / float(grid_max_z - grid_min_z);
+	printf("norm_factor_x: %f\n", norm_factor_x);
+	printf("norm_factor_z: %f\n", norm_factor_z);
+
+	ros::NodeHandle nodeHandler;
+	ros::Subscriber sub_pts_and_pose = nodeHandler.subscribe("pts_and_pose", 1000, ptCallback);
+	ros::Subscriber sub_all_kf_and_pts = nodeHandler.subscribe("all_kf_and_pts", 1000, loopClosingCallback);
+	//ros::Subscriber sub_cloud = nodeHandler.subscribe("cloud_in", 1000, cloudCallback);
+	//ros::Subscriber sub_kf = nodeHandler.subscribe("camera_pose", 1000, kfCallback);
+	//ros::Subscriber sub = nodeHandler.subscribe("/camera/image_raw", 1, &ImageGrabber::GrabImage, &igb);
+
+	ros::spin();
+	ros::shutdown();
+	cv::destroyAllWindows();
+	saveMap();
+
+	return 0;
+}
 
 void cloudCallback(const sensor_msgs::PointCloud2::ConstPtr& pt_cloud){
 	ROS_INFO("I heard: [%s]{%d}", pt_cloud->header.frame_id.c_str(),
@@ -53,7 +128,7 @@ void kfCallback(const geometry_msgs::PoseStamped::ConstPtr& camera_pose){
 	ROS_INFO("I heard: [%s]{%d}", camera_pose->header.frame_id.c_str(),
 		camera_pose->header.seq);
 }
-void saveMap(unsigned int id = 0) {
+void saveMap(unsigned int id) {
 	if (id > 0) {
 		cv::imwrite("grid_map_" + to_string(id) + ".jpg", grid_map);
 		cv::imwrite("grid_map_thresh_" + to_string(id) + ".jpg", grid_map_thresh);
@@ -89,51 +164,6 @@ void loopClosingCallback(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pt
 	//}
 	resetGridMap(all_kf_and_pts);
 }
-void parseParams(int argc, char **argv);
-void printParams();
-
-
-int main(int argc, char **argv){
-	ros::init(argc, argv, "Monosub");
-	ros::start();
-
-	parseParams(argc, argv);
-	printParams();
-
-	double grid_res_x = grid_max_x - grid_min_x, grid_res_z = grid_max_z - grid_min_z;
-
-	h = grid_res_z;
-	w = grid_res_x;
-	printf("grid_size: (%d, %d)\n", h, w);
-
-	occupied_counter.create(h, w, CV_32SC1);
-	visit_counter.create(h, w, CV_32SC1);
-	occupied_counter.setTo(cv::Scalar(0));
-	visit_counter.setTo(cv::Scalar(0));
-
-	grid_map.create(h, w, CV_32FC1);
-	grid_map_thresh.create(h, w, CV_8UC1);
-	grid_map_thresh_resized.create(h*resize_factor, w*resize_factor, CV_8UC1);
-
-	norm_factor_x = float(grid_res_x - 1) / float(grid_max_x - grid_min_x);
-	norm_factor_z = float(grid_res_z - 1) / float(grid_max_z - grid_min_z);
-	printf("norm_factor_x: %f\n", norm_factor_x);
-	printf("norm_factor_z: %f\n", norm_factor_z);
-
-	ros::NodeHandle nodeHandler;
-	ros::Subscriber sub_pts_and_pose = nodeHandler.subscribe("pts_and_pose", 1000, ptCallback);
-	ros::Subscriber sub_all_kf_and_pts = nodeHandler.subscribe("all_kf_and_pts", 1000, loopClosingCallback);
-	//ros::Subscriber sub_cloud = nodeHandler.subscribe("cloud_in", 1000, cloudCallback);
-	//ros::Subscriber sub_kf = nodeHandler.subscribe("camera_pose", 1000, kfCallback);
-	//ros::Subscriber sub = nodeHandler.subscribe("/camera/image_raw", 1, &ImageGrabber::GrabImage, &igb);
-
-	ros::spin();
-	ros::shutdown();
-	cv::destroyAllWindows();
-	saveMap();
-
-	return 0;
-}
 
 void getMixMax(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose,
 	geometry_msgs::Point& min_pt, geometry_msgs::Point& max_pt) {
@@ -151,8 +181,8 @@ void getMixMax(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose,
 		if (curr_pt.z > max_pt.z) { max_pt.z = curr_pt.z; }
 	}
 }
-void processMapPt(const geometry_msgs::Point &curr_pt,
-	int kf_pos_grid_x, int kf_pos_grid_z) {
+void processMapPt(const geometry_msgs::Point &curr_pt, cv::Mat &occupied, 
+	cv::Mat &visited, cv::Mat &pt_mask, int kf_pos_grid_x, int kf_pos_grid_z) {
 	float pt_pos_x = curr_pt.x*scale_factor;
 	float pt_pos_z = curr_pt.z*scale_factor;
 
@@ -167,7 +197,8 @@ void processMapPt(const geometry_msgs::Point &curr_pt,
 		return;
 
 	// Increment the occupency account of the grid cell where map point is located
-	++occupied_counter.at<int>(pt_pos_grid_z, pt_pos_grid_x);
+	++occupied.at<int>(pt_pos_grid_z, pt_pos_grid_x);
+	pt_mask.at<uchar>(pt_pos_grid_z, pt_pos_grid_x) = 255;
 
 	//cout << "----------------------" << endl;
 	//cout << okf_pos_grid_x << " " << okf_pos_grid_y << endl;
@@ -194,12 +225,10 @@ void processMapPt(const geometry_msgs::Point &curr_pt,
 	int ystep = (y0 < y1) ? 1 : -1;
 	for (int x = x0; x <= x1; ++x){
 		if (steep) {
-			++visit_counter.at<int>(x, y);
-			//++visit_counter[y][x];
+			++visited.at<int>(x, y);
 		}
 		else {
-			++visit_counter.at<int>(y, x);
-			//++visit_counter[x][y];
+			++visited.at<int>(y, x);
 		}
 		error = error + deltaerr;
 		if (error >= 0.5){
@@ -209,75 +238,47 @@ void processMapPt(const geometry_msgs::Point &curr_pt,
 	}
 }
 
-void getGridMap() {
-	for (int row = 0; row < h; ++row){
-		for (int col = 0; col < w; ++col){
-			int visits = visit_counter.at<int>(row, col);
-			int occupieds = occupied_counter.at<int>(row, col);
-
-			if (visits == 0 || occupieds == 0){
-				grid_map.at<float>(row, col) = 0.5;
-			}
-			else {
-				grid_map.at<float>(row, col) = 1 - float(occupieds / visits);
-			}
-			if (grid_map.at<float>(row, col) >= free_thresh) {
-				grid_map_thresh.at<uchar>(row, col) = 255;
-			}
-			else if (grid_map.at<float>(row, col) < free_thresh && grid_map.at<float>(row, col) >= occupied_thresh) {
-				grid_map_thresh.at<uchar>(row, col) = 128;
-			}
-			else {
-				grid_map_thresh.at<uchar>(row, col) = 0;
+void processMapPts(const std::vector<geometry_msgs::Pose> &pts, int start_id, 
+	int kf_pos_grid_x, int kf_pos_grid_z) {
+	if (use_local_counters) {
+		local_map_pt_mask.setTo(0);
+		local_occupied_counter.setTo(0);
+		local_visit_counter.setTo(0);
+		for (unsigned int pt_id = start_id; pt_id < pts.size(); ++pt_id){
+			processMapPt(pts[pt_id].position, local_occupied_counter, local_visit_counter,
+				local_map_pt_mask, kf_pos_grid_x, kf_pos_grid_z);
+		}
+		for (int row = 0; row < h; ++row){
+			for (int col = 0; col < w; ++col){
+				if (local_map_pt_mask.at<uchar>(row, col) == 0) {
+					local_occupied_counter.at<int>(row, col) = 0;
+				}
+				else {
+					local_occupied_counter.at<int>(row, col) = local_visit_counter.at<int>(row, col);
+				}
 			}
 		}
+		global_occupied_counter += local_occupied_counter;
+		global_visit_counter += local_visit_counter;
 	}
-	cv::resize(grid_map_thresh, grid_map_thresh_resized, grid_map_thresh_resized.size());
-}
-void showGridMap(unsigned int id = 0) {
-	cv::imshow("grid_map_thresh_resized", grid_map_thresh_resized);
-	int key = cv::waitKey(1);
-	if (key == 27) {
-		cv::destroyAllWindows();
-		ros::shutdown();
-		exit(0);
-	}
-	else if (key == 'f') {
-		free_thresh -= 1;
-		printf("Setting free_thresh to: %f\n", free_thresh);
-	}
-	else if (key == 'F') {
-		free_thresh += 1;
-		printf("Setting free_thresh to: %f\n", free_thresh);
-	}
-	else if (key == 'o') {
-		occupied_thresh -= 1;
-		printf("Setting occupied_thresh to: %f\n", occupied_thresh);
-	}
-	else if (key == 'O') {
-		occupied_thresh -= 1;
-		printf("Setting occupied_thresh to: %f\n", occupied_thresh);
-	}
-	else if (key == 's') {
-		saveMap(id);
+	else {
+		for (unsigned int pt_id = start_id; pt_id < pts.size(); ++pt_id){
+			processMapPt(pts[pt_id].position, global_occupied_counter, global_visit_counter,
+				local_map_pt_mask, kf_pos_grid_x, kf_pos_grid_z);
+		}
 	}
 }
-
 
 void updateGridMap(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
-
-	//cout << endl << "Saving grid map to " << filename << " ..." << endl;
-
-	// Init Grid Statictics
-	// We set the resolution as 10mm, all points and keyframes are in the range of (-3, -4) to (3, 1),
-	// so the grid map size is 600x500
 
 	//geometry_msgs::Point min_pt, max_pt;
 	//getMixMax(pts_and_pose, min_pt, max_pt);
 	//printf("max_pt: %f, %f\t min_pt: %f, %f\n", max_pt.x*scale_factor, max_pt.z*scale_factor, 
 	//	min_pt.x*scale_factor, min_pt.z*scale_factor);
-	//printf("min_pt: %f, %f\n", min_pt.x*scale_factor, min_pt.z*scale_factor);
+
 	//double grid_res_x = max_pt.x - min_pt.x, grid_res_z = max_pt.z - min_pt.z;
+
+	//printf("Received frame %u \n", pts_and_pose->header.seq);
 
 	const geometry_msgs::Point &kf_location = pts_and_pose->poses[0].position;
 	//const geometry_msgs::Quaternion &kf_orientation = pts_and_pose->poses[0].orientation;
@@ -293,18 +294,19 @@ void updateGridMap(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 
 	if (kf_pos_grid_z < 0 || kf_pos_grid_z >= h)
 		return;
+	++n_kf_received;
+	//unsigned int n_pts = pts_and_pose->poses.size() - 1;
+	//printf("Processing key frame %u and %u points\n",n_kf_received, n_pts);
+	processMapPts(pts_and_pose->poses, 1, kf_pos_grid_x, kf_pos_grid_z);
 
-	for (unsigned int pt_id = 1; pt_id < pts_and_pose->poses.size(); ++pt_id){
-		processMapPt(pts_and_pose->poses[pt_id].position, kf_pos_grid_x, kf_pos_grid_z);
-	}
 	getGridMap();
 	showGridMap(pts_and_pose->header.seq);
 	//cout << endl << "Grid map saved!" << endl;
 }
 
 void resetGridMap(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts){
-	visit_counter.setTo(0);
-	occupied_counter.setTo(0);
+	global_visit_counter.setTo(0);
+	global_occupied_counter.setTo(0);
 
 	unsigned int n_kf = all_kf_and_pts->poses[0].position.x;
 	if ((unsigned int) (all_kf_and_pts->poses[0].position.y) != n_kf ||
@@ -341,12 +343,71 @@ void resetGridMap(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts){
 				id + n_pts, all_kf_and_pts->poses.size());
 			return;
 		}
-		for (unsigned int pt_id = 0; pt_id < n_pts; ++pt_id){
-			processMapPt(all_kf_and_pts->poses[++id].position, kf_pos_grid_x, kf_pos_grid_z);
-		}
+		processMapPts(all_kf_and_pts->poses, id + 1, kf_pos_grid_x, kf_pos_grid_z);
+		id += n_pts;
 	}	
 	getGridMap();
 	showGridMap(all_kf_and_pts->header.seq);
+}
+
+
+void getGridMap() {
+	for (int row = 0; row < h; ++row){
+		for (int col = 0; col < w; ++col){
+			int visits = global_visit_counter.at<int>(row, col);
+			int occupieds = global_occupied_counter.at<int>(row, col);
+
+			if (visits == 0){
+				grid_map.at<float>(row, col) = 0.5;
+			}
+			else {
+				grid_map.at<float>(row, col) = 1 - float(occupieds / visits);
+			}
+			if (grid_map.at<float>(row, col) >= free_thresh) {
+				grid_map_thresh.at<uchar>(row, col) = 255;
+			}
+			else if (grid_map.at<float>(row, col) < free_thresh && grid_map.at<float>(row, col) >= occupied_thresh) {
+				grid_map_thresh.at<uchar>(row, col) = 128;
+			}
+			else {
+				grid_map_thresh.at<uchar>(row, col) = 0;
+			}
+		}
+	}
+	cv::resize(grid_map_thresh, grid_map_thresh_resized, grid_map_thresh_resized.size());
+}
+void showGridMap(unsigned int id) {
+	cv::imshow("grid_map_thresh_resized", grid_map_thresh_resized);
+	int key = cv::waitKey(1) % 256;
+	if (key == 27) {
+		cv::destroyAllWindows();
+		ros::shutdown();
+		exit(0);
+	}
+	else if (key == 'f') {
+		free_thresh -= thresh_diff;
+		if (free_thresh <= occupied_thresh){ free_thresh = occupied_thresh + thresh_diff; }
+
+		printf("Setting free_thresh to: %f\n", free_thresh);
+	}
+	else if (key == 'F') {
+		free_thresh += thresh_diff;
+		if (free_thresh > 1){ free_thresh = 1; }
+		printf("Setting free_thresh to: %f\n", free_thresh);
+	}
+	else if (key == 'o') {
+		occupied_thresh -= thresh_diff;
+		if (free_thresh < 0){ free_thresh = 0; }
+		printf("Setting occupied_thresh to: %f\n", occupied_thresh);
+	}
+	else if (key == 'O') {
+		occupied_thresh += thresh_diff;
+		if (occupied_thresh >= free_thresh){ occupied_thresh = free_thresh - thresh_diff; }
+		printf("Setting occupied_thresh to: %f\n", occupied_thresh);
+	}
+	else if (key == 's') {
+		saveMap(id);
+	}
 }
 
 void parseParams(int argc, char **argv) {
@@ -358,16 +419,16 @@ void parseParams(int argc, char **argv) {
 		resize_factor = atof(argv[arg_id++]);
 	}
 	if (argc > arg_id){
-		grid_max_x = atof(argv[arg_id++]);
+		cloud_max_x = atof(argv[arg_id++]);
 	}
 	if (argc > arg_id){
-		grid_min_x = atof(argv[arg_id++]);
+		cloud_min_x = atof(argv[arg_id++]);
 	}	
 	if (argc > arg_id){
-		grid_max_z = atof(argv[arg_id++]);
+		cloud_max_z = atof(argv[arg_id++]);
 	}
 	if (argc > arg_id){
-		grid_min_z = atof(argv[arg_id++]);
+		cloud_min_z = atof(argv[arg_id++]);
 	}
 	if (argc > arg_id){
 		free_thresh = atof(argv[arg_id++]);
@@ -375,15 +436,20 @@ void parseParams(int argc, char **argv) {
 	if (argc > arg_id){
 		occupied_thresh = atof(argv[arg_id++]);
 	}
+	if (argc > arg_id){
+		use_local_counters = atoi(argv[arg_id++]);
+	}
 }
 
 void printParams() {
 	printf("Using params:\n");
 	printf("scale_factor: %f\n", scale_factor);
 	printf("resize_factor: %f\n", resize_factor);
-	printf("grid_max: %f, %f\t grid_min: %f, %f\n", grid_max_x, grid_max_z, grid_min_x, grid_min_z);
-	//printf("grid_min: %f, %f\n", grid_min_x, grid_min_z);
+	printf("cloud_max: %f, %f\t cloud_min: %f, %f\n", cloud_max_x, cloud_max_z, cloud_min_x, cloud_min_z);
+	//printf("cloud_min: %f, %f\n", cloud_min_x, cloud_min_z);
 	printf("free_thresh: %f\n", free_thresh);
 	printf("occupied_thresh: %f\n", occupied_thresh);
+	printf("use_local_counters: %d\n", use_local_counters);
+
 }
 
