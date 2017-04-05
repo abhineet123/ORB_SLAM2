@@ -120,7 +120,8 @@ int main(int argc, char **argv){
 		ImageGrabber igb(SLAM, pub_pts_and_pose, pub_all_kf_and_pts);
 		ros::Subscriber sub = nodeHandler.subscribe(image_topic, 1, &ImageGrabber::GrabImage, &igb);
 		ros::spin();
-	} else{
+	}
+	else{
 		ros::Rate loop_rate(5);
 		cv::Mat im;
 		double tframe = 0;
@@ -168,18 +169,18 @@ int main(int argc, char **argv){
 
 	// Stop all threads
 	SLAM.Shutdown();
-	geometry_msgs::PoseArray pt_array;
-	pt_array.header.seq = 0;
-	pub_pts_and_pose.publish(pt_array);
+	//geometry_msgs::PoseArray pt_array;
+	//pt_array.header.seq = 0;
+	//pub_pts_and_pose.publish(pt_array);
 	ros::shutdown();
 	return 0;
 }
 
-void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose, 
+void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
 	ros::Publisher &pub_all_kf_and_pts, int frame_id) {
 	if (SLAM.getLoopClosing()->loop_detected) {
 		geometry_msgs::PoseArray kf_pt_array;
-		vector<ORB_SLAM2::KeyFrame*> key_frames = SLAM.getMap()->GetAllKeyFrames();		
+		vector<ORB_SLAM2::KeyFrame*> key_frames = SLAM.getMap()->GetAllKeyFrames();
 		geometry_msgs::Pose n_kf;
 		n_kf.position.x = n_kf.position.y = n_kf.position.z = key_frames.size();
 		kf_pt_array.poses.push_back(n_kf);
@@ -229,7 +230,7 @@ void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
 			}
 		}
 		kf_pt_array.header.frame_id = "1";
-		kf_pt_array.header.seq = frame_id;
+		kf_pt_array.header.seq = frame_id + 1;
 		pub_all_kf_and_pts.publish(kf_pt_array);
 	}
 	else if (SLAM.getTracker()->mCurrentFrame.is_keyframe) {
@@ -317,7 +318,7 @@ void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
 		//printf("ros_cloud size: %d x %d\n", ros_cloud.height, ros_cloud.width);
 		//pub_cloud.publish(ros_cloud);
 		pt_array.header.frame_id = "1";
-		pt_array.header.seq = frame_id;
+		pt_array.header.seq = frame_id + 1;
 		pub_pts_and_pose.publish(pt_array);
 		//pub_kf.publish(camera_pose);
 	}
