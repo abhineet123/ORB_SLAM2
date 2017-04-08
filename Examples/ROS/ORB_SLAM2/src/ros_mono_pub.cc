@@ -181,11 +181,10 @@ void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
 	if (SLAM.getLoopClosing()->loop_detected) {
 		geometry_msgs::PoseArray kf_pt_array;
 		vector<ORB_SLAM2::KeyFrame*> key_frames = SLAM.getMap()->GetAllKeyFrames();
-		geometry_msgs::Pose n_kf;
-		n_kf.position.x = n_kf.position.y = n_kf.position.z = key_frames.size();
-		kf_pt_array.poses.push_back(n_kf);
+		//! placeholder for number of keyframes
+		kf_pt_array.poses.push_back(geometry_msgs::Pose());
 		sort(key_frames.begin(), key_frames.end(), ORB_SLAM2::KeyFrame::lId);
-
+		unsigned int n_kf = 0;
 		for (auto key_frame : key_frames) {
 			// pKF->SetPose(pKF->GetPose()*Two);
 
@@ -206,10 +205,11 @@ void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
 			kf_pose.orientation.w = q[3];
 			kf_pt_array.poses.push_back(kf_pose);
 
+			unsigned int n_pts_id = kf_pt_array.poses.size();
+			//! placeholder for number of points
+			kf_pt_array.poses.push_back(geometry_msgs::Pose());
 			std::set<ORB_SLAM2::MapPoint*> map_points = key_frame->GetMapPoints();
-			geometry_msgs::Pose n_pts;
-			n_pts.position.x = n_pts.position.y = n_pts.position.z = map_points.size();
-			kf_pt_array.poses.push_back(n_pts);
+			unsigned int n_pts = 0;
 			for (auto map_pt : map_points) {
 				if (!map_pt || map_pt->isBad()) {
 					//printf("Point %d is bad\n", pt_id);
@@ -227,10 +227,19 @@ void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
 				curr_pt.position.y = pt_pose.at<float>(1);
 				curr_pt.position.z = pt_pose.at<float>(2);
 				kf_pt_array.poses.push_back(curr_pt);
+				++n_pts;
 			}
+			geometry_msgs::Pose n_pts_msg;
+			n_pts_msg.position.x = n_pts_msg.position.y = n_pts_msg.position.z = n_pts;
+			kf_pt_array.poses[n_pts_id] = n_pts_msg;
+			++n_kf;
 		}
+		geometry_msgs::Pose n_kf_msg;
+		n_kf_msg.position.x = n_kf_msg.position.y = n_kf_msg.position.z = n_kf;
+		kf_pt_array.poses[0] = n_kf_msg;
 		kf_pt_array.header.frame_id = "1";
 		kf_pt_array.header.seq = frame_id + 1;
+		printf("Publishing data for %u keyfranmes\n", n_kf);
 		pub_all_kf_and_pts.publish(kf_pt_array);
 	}
 	else if (SLAM.getTracker()->mCurrentFrame.is_keyframe) {

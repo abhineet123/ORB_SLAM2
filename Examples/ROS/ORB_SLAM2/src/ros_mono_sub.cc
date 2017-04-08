@@ -31,6 +31,7 @@ float cloud_min_z = -5;
 float free_thresh = 0.55;
 float occupied_thresh = 0.50;
 float thresh_diff = 0.01;
+int visit_thresh = 0;
 float upper_left_x = -1.5;
 float upper_left_y = -2.5;
 const int resolution = 10;
@@ -61,8 +62,8 @@ void getMixMax(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose,
 	geometry_msgs::Point& min_pt, geometry_msgs::Point& max_pt);
 void processMapPt(const geometry_msgs::Point &curr_pt, cv::Mat &occupied,
 	cv::Mat &visited, cv::Mat &pt_mask, int kf_pos_grid_x, int kf_pos_grid_z);
-void processMapPts(const std::vector<geometry_msgs::Pose> &pts, int start_id,
-	int kf_pos_grid_x, int kf_pos_grid_z);
+void processMapPts(const std::vector<geometry_msgs::Pose> &pts, unsigned int n_pts,
+	unsigned int start_id, int kf_pos_grid_x, int kf_pos_grid_z);
 void getGridMap();
 
 
@@ -238,13 +239,14 @@ void processMapPt(const geometry_msgs::Point &curr_pt, cv::Mat &occupied,
 	}
 }
 
-void processMapPts(const std::vector<geometry_msgs::Pose> &pts, int start_id, 
-	int kf_pos_grid_x, int kf_pos_grid_z) {
+void processMapPts(const std::vector<geometry_msgs::Pose> &pts, unsigned int n_pts,
+	unsigned int start_id, int kf_pos_grid_x, int kf_pos_grid_z) {
+	unsigned int end_id = start_id + n_pts;
 	if (use_local_counters) {
 		local_map_pt_mask.setTo(0);
 		local_occupied_counter.setTo(0);
 		local_visit_counter.setTo(0);
-		for (unsigned int pt_id = start_id; pt_id < pts.size(); ++pt_id){
+		for (unsigned int pt_id = start_id; pt_id < end_id; ++pt_id){
 			processMapPt(pts[pt_id].position, local_occupied_counter, local_visit_counter,
 				local_map_pt_mask, kf_pos_grid_x, kf_pos_grid_z);
 		}
@@ -262,7 +264,7 @@ void processMapPts(const std::vector<geometry_msgs::Pose> &pts, int start_id,
 		global_visit_counter += local_visit_counter;
 	}
 	else {
-		for (unsigned int pt_id = start_id; pt_id < pts.size(); ++pt_id){
+		for (unsigned int pt_id = start_id; pt_id < end_id; ++pt_id){
 			processMapPt(pts[pt_id].position, global_occupied_counter, global_visit_counter,
 				local_map_pt_mask, kf_pos_grid_x, kf_pos_grid_z);
 		}
@@ -295,9 +297,9 @@ void updateGridMap(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 	if (kf_pos_grid_z < 0 || kf_pos_grid_z >= h)
 		return;
 	++n_kf_received;
-	//unsigned int n_pts = pts_and_pose->poses.size() - 1;
+	unsigned int n_pts = pts_and_pose->poses.size() - 1;
 	//printf("Processing key frame %u and %u points\n",n_kf_received, n_pts);
-	processMapPts(pts_and_pose->poses, 1, kf_pos_grid_x, kf_pos_grid_z);
+	processMapPts(pts_and_pose->poses, n_pts, 1, kf_pos_grid_x, kf_pos_grid_z);
 
 	getGridMap();
 	showGridMap(pts_and_pose->header.seq);
@@ -311,11 +313,15 @@ void resetGridMap(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts){
 	unsigned int n_kf = all_kf_and_pts->poses[0].position.x;
 	if ((unsigned int) (all_kf_and_pts->poses[0].position.y) != n_kf ||
 		(unsigned int) (all_kf_and_pts->poses[0].position.z) != n_kf) {
-		printf("Unexpected formatting in the keyframe count element\n");
+		printf("resetGridMap :: Unexpected formatting in the keyframe count element\n");
 		return;
 	}
 	printf("Resetting grid map with %d key frames\n", n_kf);
-
+#ifdef COMPILEDWITHC11
+	std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+#else
+	std::chrono::monotonic_clock::time_point t1 = std::chrono::monotonic_clock::now();
+#endif
 	unsigned int id = 0;
 	for (unsigned int kf_id = 0; kf_id < all_kf_and_pts->poses.size(); ++kf_id){
 		const geometry_msgs::Point &kf_location = all_kf_and_pts->poses[++id].position;
@@ -323,7 +329,7 @@ void resetGridMap(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts){
 		unsigned int n_pts = all_kf_and_pts->poses[++id].position.x;
 		if ((unsigned int)(all_kf_and_pts->poses[id].position.y) != n_pts ||
 			(unsigned int)(all_kf_and_pts->poses[id].position.z) != n_pts) {
-			printf("Unexpected formatting in the point count element for keyframe %d\n", kf_id);
+			printf("resetGridMap :: Unexpected formatting in the point count element for keyframe %d\n", kf_id);
 			return;
 		}
 		float kf_pos_x = kf_location.x*scale_factor;
@@ -333,20 +339,28 @@ void resetGridMap(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts){
 		int kf_pos_grid_z = int(floor((kf_pos_z - grid_min_z) * norm_factor_z));
 
 		if (kf_pos_grid_x < 0 || kf_pos_grid_x >= w)
-			return;
+			continue;
 
 		if (kf_pos_grid_z < 0 || kf_pos_grid_z >= h)
-			return;
+			continue;
 
 		if (id + n_pts >= all_kf_and_pts->poses.size()) {
-			printf("Unexpected end of the input array: only %u out of %u elements found",
-				id + n_pts, all_kf_and_pts->poses.size());
+			printf("resetGridMap :: Unexpected end of the input array: only %u out of %u elements found\n",
+				all_kf_and_pts->poses.size(), id + n_pts);
 			return;
 		}
-		processMapPts(all_kf_and_pts->poses, id + 1, kf_pos_grid_x, kf_pos_grid_z);
+		processMapPts(all_kf_and_pts->poses, n_pts, id + 1, kf_pos_grid_x, kf_pos_grid_z);
 		id += n_pts;
 	}	
 	getGridMap();
+#ifdef COMPILEDWITHC11
+	std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
+#else
+	std::chrono::monotonic_clock::time_point t2 = std::chrono::monotonic_clock::now();
+#endif
+	double ttrack = std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();
+	printf("Done.\n");
+	printf("Time taken: %f secs\n", ttrack);
 	showGridMap(all_kf_and_pts->header.seq);
 }
 
@@ -357,7 +371,7 @@ void getGridMap() {
 			int visits = global_visit_counter.at<int>(row, col);
 			int occupieds = global_occupied_counter.at<int>(row, col);
 
-			if (visits == 0){
+			if (visits <= visit_thresh){
 				grid_map.at<float>(row, col) = 0.5;
 			}
 			else {
@@ -439,6 +453,9 @@ void parseParams(int argc, char **argv) {
 	if (argc > arg_id){
 		use_local_counters = atoi(argv[arg_id++]);
 	}
+	if (argc > arg_id){
+		visit_thresh = atoi(argv[arg_id++]);
+	}
 }
 
 void printParams() {
@@ -450,6 +467,7 @@ void printParams() {
 	printf("free_thresh: %f\n", free_thresh);
 	printf("occupied_thresh: %f\n", occupied_thresh);
 	printf("use_local_counters: %d\n", use_local_counters);
+	printf("visit_thresh: %d\n", visit_thresh);
 
 }
 

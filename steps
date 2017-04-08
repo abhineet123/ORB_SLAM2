@@ -62,6 +62,9 @@ rosrun rviz rviz
 Displays->Add->Map
 set Topic to /map
 
+get all map points for the rosbag:
+rosrun ORB_SLAM2 Mono Vocabulary/ORBvoc.txt Examples/Monocular/demo_cam.yaml /camera/image_raw:=usb_cam/image_raw
+
 start publisher with dataset:
 rosrun ORB_SLAM2 Monopub Vocabulary/ORBvoc.txt Examples/Monocular/KITTI00-02.yaml /home/abhineet/KITTI/00
 rosrun ORB_SLAM2 Monopub Vocabulary/ORBvoc.txt Examples/Monocular/TUM3.yaml /home/abhineet/TUM-RGBD/rgbd_dataset_freiburg3_walking_halfsphere
@@ -71,17 +74,17 @@ start publisher with default topic (/camera/image_raw):
 rosrun ORB_SLAM2 Monopub Vocabulary/ORBvoc.txt Examples/Monocular/mono.yaml -1
 start publisher with custom topic:
 rosrun ORB_SLAM2 Monopub Vocabulary/ORBvoc.txt Examples/Monocular/demo_cam.yaml -1 /usb_cam/image_raw
-get all map points for the rosbag:
-rosrun ORB_SLAM2 Mono Vocabulary/ORBvoc.txt Examples/Monocular/demo_cam.yaml /camera/image_raw:=usb_cam/image_raw
 
 start subscriber on kitti 00:
-rosrun ORB_SLAM2 Monosub 5 3 29 -25 48 -12 0.55 0.50 1
+rosrun ORB_SLAM2 Monosub 5 3 29 -25 48 -12 0.55 0.50 1 5
+
 start subscriber on rosbag:
-rosrun ORB_SLAM2 Monosub 30 5 2 -2 2 -2 0.55 0.50 1
-rosrun ORB_SLAM2 Monosub 30 2 6 -6 6 -6 0.55 0.50 1
+rosrun ORB_SLAM2 Monosub 30 5 2 -2 2 -2 0.55 0.50 1 5
+rosrun ORB_SLAM2 Monosub 30 2 6 -6 6 -6 0.55 0.50 1 5
+
 running rosbag of recording:
-rosbag play "/media/abhineet/Win 8/bags/2017-04-03-20-35-36.bag"
-rosbag play "/media/abhineet/Win 8/bags/2017-04-03-13-37-07.bag"
+rosbag play "/media/abhineet/Win 8/bags/2017-04-03-20-35-36.bag" -r 0.5
+rosbag play "/media/abhineet/Win 8/bags/2017-04-03-13-37-07.bag" -r 0.5
 
 
 
