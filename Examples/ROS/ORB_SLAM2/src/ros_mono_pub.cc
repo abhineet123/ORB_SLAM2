@@ -44,6 +44,18 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <Converter.h>
 
+//! parameters
+bool read_from_topic = false, read_from_camera = false;
+std::string image_topic = "/camera/image_raw";
+int all_pts_pub_gap = 0;
+
+vector<string> vstrImageFilenames;
+vector<double> vTimestamps;
+cv::VideoCapture cap_obj;
+
+bool pub_all_pts = false;
+int pub_count = 0;
+
 void LoadImages(const string &strSequence, vector<string> &vstrImageFilenames,
 	vector<double> &vTimestamps);
 inline bool isInteger(const std::string & s);
@@ -64,54 +76,20 @@ public:
 	ros::Publisher &pub_all_kf_and_pts;
 	int frame_id;
 };
+bool parseParams(int argc, char **argv);
 
 using namespace std;
 
 int main(int argc, char **argv){
 	ros::init(argc, argv, "Monopub");
 	ros::start();
-
-	if (argc < 4){
-		cerr << endl << "Usage: rosrun ORB_SLAM2 Monopub path_to_vocabulary path_to_settings path_to_sequence/camera_id/-1 <image_topic>" << endl;
-		return 1;
-	}
-	cv::VideoCapture cap_obj;
-	bool read_from_topic = false, read_from_camera = false;
-	std::string image_topic = "/camera/image_raw";
-	vector<string> vstrImageFilenames;
-	vector<double> vTimestamps;
-
-	if (isInteger(std::string(argv[3]))) {
-		int camera_id = atoi(argv[3]);
-		if (camera_id >= 0){
-			read_from_camera = true;
-			printf("Reading images from camera with id %d\n", camera_id);
-			cap_obj.open(camera_id);
-			if (!(cap_obj.isOpened())) {
-				printf("Camera stream could not be initialized successfully\n");
-				ros::shutdown();
-				return EXIT_FAILURE;
-			}
-			int img_height = cap_obj.get(CV_CAP_PROP_FRAME_HEIGHT);
-			int img_width = cap_obj.get(CV_CAP_PROP_FRAME_WIDTH);
-			printf("Images are of size: %d x %d\n", img_width, img_height);
-		}
-		else {
-			read_from_topic = true;
-			if (argc > 4){
-				image_topic = std::string(argv[4]);
-			}
-			printf("Reading images from topic %s\n", image_topic.c_str());
-		}
-	}
-	else {
-		LoadImages(string(argv[3]), vstrImageFilenames, vTimestamps);
+	if (!parseParams(argc, argv)) {
+		return EXIT_FAILURE;
 	}
 	int n_images = vstrImageFilenames.size();
 
 	// Create SLAM system. It initializes all system threads and gets ready to process frames.
 	ORB_SLAM2::System SLAM(argv[1], argv[2], ORB_SLAM2::System::MONOCULAR, true);
-
 	ros::NodeHandle nodeHandler;
 	//ros::Publisher pub_cloud = nodeHandler.advertise<sensor_msgs::PointCloud2>("cloud_in", 1000);
 	ros::Publisher pub_pts_and_pose = nodeHandler.advertise<geometry_msgs::PoseArray>("pts_and_pose", 1000);
@@ -155,7 +133,6 @@ int main(int argc, char **argv){
 
 			publish(SLAM, pub_pts_and_pose, pub_all_kf_and_pts, frame_id);
 
-
 			//cv::imshow("Press escape to exit", im);
 			//if (cv::waitKey(1) == 27) {
 			//	break;
@@ -178,7 +155,12 @@ int main(int argc, char **argv){
 
 void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
 	ros::Publisher &pub_all_kf_and_pts, int frame_id) {
-	if (SLAM.getLoopClosing()->loop_detected) {
+	if (all_pts_pub_gap>0 && pub_count >= all_pts_pub_gap) {
+		pub_all_pts = true;
+		pub_count = 0;
+	}
+	if (pub_all_pts || SLAM.getLoopClosing()->loop_detected) {
+		pub_all_pts = SLAM.getLoopClosing()->loop_detected = false;
 		geometry_msgs::PoseArray kf_pt_array;
 		vector<ORB_SLAM2::KeyFrame*> key_frames = SLAM.getMap()->GetAllKeyFrames();
 		//! placeholder for number of keyframes
@@ -243,7 +225,8 @@ void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
 		pub_all_kf_and_pts.publish(kf_pt_array);
 	}
 	else if (SLAM.getTracker()->mCurrentFrame.is_keyframe) {
-
+		++pub_count;
+		SLAM.getTracker()->mCurrentFrame.is_keyframe = false;
 		ORB_SLAM2::KeyFrame* pKF = SLAM.getTracker()->mCurrentFrame.mpReferenceKF;
 
 		cv::Mat Trw = cv::Mat::eye(4, 4, CV_32F);
@@ -385,6 +368,45 @@ void ImageGrabber::GrabImage(const sensor_msgs::ImageConstPtr& msg){
 	publish(SLAM, pub_pts_and_pose, pub_all_kf_and_pts, frame_id);
 	++frame_id;
 }
+
+bool parseParams(int argc, char **argv) {
+	if (argc < 4){
+		cerr << endl << "Usage: rosrun ORB_SLAM2 Monopub path_to_vocabulary path_to_settings path_to_sequence/camera_id/-1 <image_topic>" << endl;
+		return 1;
+	}
+	if (isInteger(std::string(argv[3]))) {
+		int camera_id = atoi(argv[3]);
+		if (camera_id >= 0){
+			read_from_camera = true;
+			printf("Reading images from camera with id %d\n", camera_id);
+			cap_obj.open(camera_id);
+			if (!(cap_obj.isOpened())) {
+				printf("Camera stream could not be initialized successfully\n");
+				ros::shutdown();
+				return 0;
+			}
+			int img_height = cap_obj.get(CV_CAP_PROP_FRAME_HEIGHT);
+			int img_width = cap_obj.get(CV_CAP_PROP_FRAME_WIDTH);
+			printf("Images are of size: %d x %d\n", img_width, img_height);
+		}
+		else {
+			read_from_topic = true;
+			if (argc > 4){
+				image_topic = std::string(argv[4]);
+			}
+			printf("Reading images from topic %s\n", image_topic.c_str());
+		}
+	}
+	else {
+		LoadImages(string(argv[3]), vstrImageFilenames, vTimestamps);
+	}
+	if (argc >= 5) {
+		all_pts_pub_gap = atoi(argv[4]);
+	}
+	printf("all_pts_pub_gap: %d\n", all_pts_pub_gap);
+	return 1;
+}
+
 
 
 

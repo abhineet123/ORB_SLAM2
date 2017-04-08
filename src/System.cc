@@ -218,8 +218,8 @@ namespace ORB_SLAM2
 
 	cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp)
 	{
-		mpLoopCloser->loop_detected = false;
-		mpTracker->mCurrentFrame.is_keyframe = false;
+		//mpLoopCloser->loop_detected = false;
+		//mpTracker->mCurrentFrame.is_keyframe = false;
 
 		if (mSensor != MONOCULAR)
 		{

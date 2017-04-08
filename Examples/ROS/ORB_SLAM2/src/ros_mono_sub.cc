@@ -45,6 +45,7 @@ cv::Mat grid_map, grid_map_thresh, grid_map_thresh_resized;
 float norm_factor_x, norm_factor_z;
 int h, w;
 unsigned int n_kf_received;
+bool loop_closure_being_processed = false;
 
 using namespace std;
 
@@ -152,6 +153,7 @@ void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 	//	ros::shutdown();
 	//	exit(0);
 	//}
+	if (loop_closure_being_processed){ return; }
 	updateGridMap(pts_and_pose);
 }
 void loopClosingCallback(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts){
@@ -163,7 +165,9 @@ void loopClosingCallback(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pt
 	//	ros::shutdown();
 	//	exit(0);
 	//}
+	loop_closure_being_processed = true;
 	resetGridMap(all_kf_and_pts);
+	loop_closure_being_processed = false;
 }
 
 void getMixMax(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose,
@@ -323,7 +327,7 @@ void resetGridMap(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts){
 	std::chrono::monotonic_clock::time_point t1 = std::chrono::monotonic_clock::now();
 #endif
 	unsigned int id = 0;
-	for (unsigned int kf_id = 0; kf_id < all_kf_and_pts->poses.size(); ++kf_id){
+	for (unsigned int kf_id = 0; kf_id < n_kf; ++kf_id){
 		const geometry_msgs::Point &kf_location = all_kf_and_pts->poses[++id].position;
 		//const geometry_msgs::Quaternion &kf_orientation = pts_and_pose->poses[0].orientation;
 		unsigned int n_pts = all_kf_and_pts->poses[++id].position.x;
@@ -345,8 +349,8 @@ void resetGridMap(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts){
 			continue;
 
 		if (id + n_pts >= all_kf_and_pts->poses.size()) {
-			printf("resetGridMap :: Unexpected end of the input array: only %u out of %u elements found\n",
-				all_kf_and_pts->poses.size(), id + n_pts);
+			printf("resetGridMap :: Unexpected end of the input array while processing keyframe %u with %u points: only %u out of %u elements found\n",
+				kf_id, n_pts, all_kf_and_pts->poses.size(), id + n_pts);
 			return;
 		}
 		processMapPts(all_kf_and_pts->poses, n_pts, id + 1, kf_pos_grid_x, kf_pos_grid_z);
@@ -359,8 +363,7 @@ void resetGridMap(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts){
 	std::chrono::monotonic_clock::time_point t2 = std::chrono::monotonic_clock::now();
 #endif
 	double ttrack = std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();
-	printf("Done.\n");
-	printf("Time taken: %f secs\n", ttrack);
+	printf("Done. Time taken: %f secs\n", ttrack);
 	showGridMap(all_kf_and_pts->header.seq);
 }
 
