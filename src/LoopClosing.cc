@@ -401,6 +401,7 @@ bool LoopClosing::ComputeSim3()
 
 void LoopClosing::CorrectLoop()
 {
+	mpTracker->loop_detected = true;
 	loop_detected = true;
 	cout << "Loop detected!" << endl;
 

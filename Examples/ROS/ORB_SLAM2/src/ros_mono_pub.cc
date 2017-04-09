@@ -159,8 +159,8 @@ void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
 		pub_all_pts = true;
 		pub_count = 0;
 	}
-	if (pub_all_pts || SLAM.getLoopClosing()->loop_detected) {
-		pub_all_pts = SLAM.getLoopClosing()->loop_detected = false;
+	if (pub_all_pts || SLAM.getLoopClosing()->loop_detected || SLAM.getTracker()->loop_detected) {
+		pub_all_pts = SLAM.getTracker()->loop_detected = SLAM.getLoopClosing()->loop_detected = false;
 		geometry_msgs::PoseArray kf_pt_array;
 		vector<ORB_SLAM2::KeyFrame*> key_frames = SLAM.getMap()->GetAllKeyFrames();
 		//! placeholder for number of keyframes

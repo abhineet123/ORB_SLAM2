@@ -131,6 +131,7 @@ void kfCallback(const geometry_msgs::PoseStamped::ConstPtr& camera_pose){
 		camera_pose->header.seq);
 }
 void saveMap(unsigned int id) {
+	printf("saving maps with id: %u\n", id);
 	if (id > 0) {
 		cv::imwrite("grid_map_" + to_string(id) + ".jpg", grid_map);
 		cv::imwrite("grid_map_thresh_" + to_string(id) + ".jpg", grid_map_thresh);
@@ -395,6 +396,7 @@ void getGridMap() {
 }
 void showGridMap(unsigned int id) {
 	cv::imshow("grid_map_thresh_resized", grid_map_thresh_resized);
+	cv::imshow("grid_map", grid_map);
 	int key = cv::waitKey(1) % 256;
 	if (key == 27) {
 		cv::destroyAllWindows();
