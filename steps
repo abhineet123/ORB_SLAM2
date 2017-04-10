@@ -66,7 +66,7 @@ get all map points for the rosbag:
 rosrun ORB_SLAM2 Mono Vocabulary/ORBvoc.txt Examples/Monocular/demo_cam.yaml /camera/image_raw:=usb_cam/image_raw
 
 start publisher with dataset:
-rosrun ORB_SLAM2 Monopub Vocabulary/ORBvoc.txt Examples/Monocular/KITTI00-02.yaml /home/abhineet/KITTI/00 10
+rosrun ORB_SLAM2 Monopub Vocabulary/ORBvoc.txt Examples/Monocular/KITTI00-02.yaml /home/abhineet/KITTI/00 0
 rosrun ORB_SLAM2 Monopub Vocabulary/ORBvoc.txt Examples/Monocular/TUM3.yaml /home/abhineet/TUM-RGBD/rgbd_dataset_freiburg3_walking_halfsphere
 start publisher with camera:
 rosrun ORB_SLAM2 Monopub Vocabulary/ORBvoc.txt Examples/Monocular/mono.yaml 0

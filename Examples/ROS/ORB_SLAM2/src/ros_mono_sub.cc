@@ -10,6 +10,7 @@
 #include "sensor_msgs/PointCloud2.h"
 #include "geometry_msgs/PoseStamped.h"
 #include "geometry_msgs/PoseArray.h"
+#include "nav_msgs/OccupancyGrid.h"
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -41,11 +42,13 @@ float grid_max_x, grid_min_x,grid_max_z, grid_min_z;
 cv::Mat global_occupied_counter, global_visit_counter;
 cv::Mat local_occupied_counter, local_visit_counter;
 cv::Mat local_map_pt_mask;
-cv::Mat grid_map, grid_map_thresh, grid_map_thresh_resized;
+cv::Mat grid_map, grid_map_int, grid_map_thresh, grid_map_thresh_resized;
 float norm_factor_x, norm_factor_z;
 int h, w;
 unsigned int n_kf_received;
 bool loop_closure_being_processed = false;
+ros::Publisher pub_grid_map;
+nav_msgs::OccupancyGrid grid_map_msg;
 
 using namespace std;
 
@@ -93,6 +96,12 @@ int main(int argc, char **argv){
 	global_occupied_counter.setTo(cv::Scalar(0));
 	global_visit_counter.setTo(cv::Scalar(0));
 
+	grid_map_msg.data.resize(h*w);
+	grid_map_msg.info.width = w;
+	grid_map_msg.info.height = h;
+	grid_map_int = cv::Mat(h, w, CV_8SC1, (char*)(grid_map_msg.data.data()));
+
+
 	grid_map.create(h, w, CV_32FC1);
 	grid_map_thresh.create(h, w, CV_8UC1);
 	grid_map_thresh_resized.create(h*resize_factor, w*resize_factor, CV_8UC1);
@@ -110,6 +119,7 @@ int main(int argc, char **argv){
 	ros::NodeHandle nodeHandler;
 	ros::Subscriber sub_pts_and_pose = nodeHandler.subscribe("pts_and_pose", 1000, ptCallback);
 	ros::Subscriber sub_all_kf_and_pts = nodeHandler.subscribe("all_kf_and_pts", 1000, loopClosingCallback);
+	pub_grid_map = nodeHandler.advertise<nav_msgs::OccupancyGrid>("grid_map", 1000);
 	//ros::Subscriber sub_cloud = nodeHandler.subscribe("cloud_in", 1000, cloudCallback);
 	//ros::Subscriber sub_kf = nodeHandler.subscribe("camera_pose", 1000, kfCallback);
 	//ros::Subscriber sub = nodeHandler.subscribe("/camera/image_raw", 1, &ImageGrabber::GrabImage, &igb);
@@ -365,6 +375,8 @@ void resetGridMap(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts){
 #endif
 	double ttrack = std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();
 	printf("Done. Time taken: %f secs\n", ttrack);
+	grid_map_int = grid_map * 100;	
+	pub_grid_map.publish(grid_map_msg);
 	showGridMap(all_kf_and_pts->header.seq);
 }
 
@@ -379,7 +391,7 @@ void getGridMap() {
 				grid_map.at<float>(row, col) = 0.5;
 			}
 			else {
-				grid_map.at<float>(row, col) = 1 - float(occupieds / visits);
+				grid_map.at<float>(row, col) = 1.0 - float(occupieds / visits);
 			}
 			if (grid_map.at<float>(row, col) >= free_thresh) {
 				grid_map_thresh.at<uchar>(row, col) = 255;
