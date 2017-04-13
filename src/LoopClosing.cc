@@ -401,8 +401,7 @@ bool LoopClosing::ComputeSim3()
 
 void LoopClosing::CorrectLoop()
 {
-	mpTracker->loop_detected = true;
-	loop_detected = true;
+
 	cout << "Loop detected!" << endl;
 
     // Send a stop signal to Local Mapping
@@ -748,6 +747,7 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF)
         mbFinishedGBA = true;
         mbRunningGBA = false;
     }
+	loop_detected = mpTracker->loop_detected = true;
 }
 
 void LoopClosing::RequestFinish()

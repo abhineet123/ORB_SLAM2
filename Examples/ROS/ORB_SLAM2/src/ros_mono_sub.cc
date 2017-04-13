@@ -22,6 +22,11 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <Converter.h>
 
+#include <move_base_msgs/MoveBaseAction.h>
+#include <actionlib/client/simple_action_client.h>
+
+typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
+
 // parameters
 float scale_factor = 3;
 float resize_factor = 5;
@@ -49,6 +54,17 @@ unsigned int n_kf_received;
 bool loop_closure_being_processed = false;
 ros::Publisher pub_grid_map;
 nav_msgs::OccupancyGrid grid_map_msg;
+#ifdef COMPILEDWITHC11
+std::chrono::steady_clock::time_point start_time, end_time;
+#else
+std::chrono::monotonic_clock::time_point start_time, end_time;
+#endif
+bool got_start_time;
+MoveBaseClient ac;
+move_base_msgs::MoveBaseGoal goal;
+
+float kf_pos_x, kf_pos_z;
+int kf_pos_grid_x, kf_pos_grid_z;
 
 using namespace std;
 
@@ -70,13 +86,25 @@ void processMapPts(const std::vector<geometry_msgs::Pose> &pts, unsigned int n_p
 	unsigned int start_id, int kf_pos_grid_x, int kf_pos_grid_z);
 void getGridMap();
 
-
 int main(int argc, char **argv){
 	ros::init(argc, argv, "Monosub");
 	ros::start();
 
+	//tell the action client that we want to spin a thread by default
+	ac = MoveBaseClient("move_base", true);
+
+	//wait for the action server to come up
+	while (!ac.waitForServer(ros::Duration(5.0))){
+		ROS_INFO("Waiting for the move_base action server to come up");
+	}
+
+	//we'll send a goal to the robot to move 1 meter forward
+	goal.target_pose.header.frame_id = "base_link";
+
 	parseParams(argc, argv);
 	printParams();
+
+	got_start_time = false;
 
 	grid_max_x = cloud_max_x*scale_factor;
 	grid_min_x = cloud_min_x*scale_factor;
@@ -99,8 +127,9 @@ int main(int argc, char **argv){
 	grid_map_msg.data.resize(h*w);
 	grid_map_msg.info.width = w;
 	grid_map_msg.info.height = h;
-	grid_map_int = cv::Mat(h, w, CV_8SC1, (char*)(grid_map_msg.data.data()));
+	grid_map_msg.info.resolution = 1.0/scale_factor;
 
+	grid_map_int = cv::Mat(h, w, CV_8SC1, (char*)(grid_map_msg.data.data()));
 
 	grid_map.create(h, w, CV_32FC1);
 	grid_map_thresh.create(h, w, CV_8UC1);
@@ -120,6 +149,8 @@ int main(int argc, char **argv){
 	ros::Subscriber sub_pts_and_pose = nodeHandler.subscribe("pts_and_pose", 1000, ptCallback);
 	ros::Subscriber sub_all_kf_and_pts = nodeHandler.subscribe("all_kf_and_pts", 1000, loopClosingCallback);
 	pub_grid_map = nodeHandler.advertise<nav_msgs::OccupancyGrid>("grid_map", 1000);
+
+
 	//ros::Subscriber sub_cloud = nodeHandler.subscribe("cloud_in", 1000, cloudCallback);
 	//ros::Subscriber sub_kf = nodeHandler.subscribe("camera_pose", 1000, kfCallback);
 	//ros::Subscriber sub = nodeHandler.subscribe("/camera/image_raw", 1, &ImageGrabber::GrabImage, &igb);
@@ -164,8 +195,39 @@ void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 	//	ros::shutdown();
 	//	exit(0);
 	//}
+//	if (!got_start_time) {
+//#ifdef COMPILEDWITHC11
+//		start_time = std::chrono::steady_clock::now();
+//#else
+//		start_time = std::chrono::monotonic_clock::now();
+//#endif
+//		got_start_time = true;
+//	}
+
 	if (loop_closure_being_processed){ return; }
+
 	updateGridMap(pts_and_pose);
+
+//#ifdef COMPILEDWITHC11
+//	end_time = std::chrono::steady_clock::now();
+//#else
+//	end_time = std::chrono::monotonic_clock::now();
+//#endif
+//	double curr_time = std::chrono::duration_cast<std::chrono::duration<double>>(start_time - end_time).count();
+
+	grid_map_msg.info.map_load_time = ros::Time::now();
+	pub_grid_map.publish(grid_map_msg);
+	goal.target_pose.header.stamp = ros::Time::now();
+	goal.target_pose.pose.position.x = kf_pos_grid_x;
+	goal.target_pose.pose.position.y = kf_pos_grid_z;
+	goal.target_pose.pose.orientation = pts_and_pose->poses[0].orientation;
+	ROS_INFO("Sending goal");
+	ac.sendGoal(goal);
+	ac.waitForResult();
+	if (ac.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+		ROS_INFO("Hooray, the base moved 1 meter forward");
+	else
+		ROS_INFO("The base failed to move forward 1 meter for some reason");
 }
 void loopClosingCallback(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts){
 	//ROS_INFO("Received points and pose: [%s]{%d}", pts_and_pose->header.frame_id.c_str(),
@@ -300,11 +362,11 @@ void updateGridMap(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 	const geometry_msgs::Point &kf_location = pts_and_pose->poses[0].position;
 	//const geometry_msgs::Quaternion &kf_orientation = pts_and_pose->poses[0].orientation;
 
-	float kf_pos_x = kf_location.x*scale_factor;
-	float kf_pos_z = kf_location.z*scale_factor;
+	kf_pos_x = kf_location.x*scale_factor;
+	kf_pos_z = kf_location.z*scale_factor;
 
-	int kf_pos_grid_x = int(floor((kf_pos_x - grid_min_x) * norm_factor_x));
-	int kf_pos_grid_z = int(floor((kf_pos_z - grid_min_z) * norm_factor_z));
+	kf_pos_grid_x = int(floor((kf_pos_x - grid_min_x) * norm_factor_x));
+	kf_pos_grid_z = int(floor((kf_pos_z - grid_min_z) * norm_factor_z));
 
 	if (kf_pos_grid_x < 0 || kf_pos_grid_x >= w)
 		return;
@@ -375,11 +437,9 @@ void resetGridMap(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts){
 #endif
 	double ttrack = std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();
 	printf("Done. Time taken: %f secs\n", ttrack);
-	grid_map_int = grid_map * 100;	
 	pub_grid_map.publish(grid_map_msg);
 	showGridMap(all_kf_and_pts->header.seq);
 }
-
 
 void getGridMap() {
 	for (int row = 0; row < h; ++row){
@@ -402,13 +462,15 @@ void getGridMap() {
 			else {
 				grid_map_thresh.at<uchar>(row, col) = 0;
 			}
+			grid_map_int.at<char>(row, col) = (1 - grid_map.at<float>(row, col)) * 100;
 		}
 	}
 	cv::resize(grid_map_thresh, grid_map_thresh_resized, grid_map_thresh_resized.size());
 }
 void showGridMap(unsigned int id) {
+	cv::imshow("grid_map_msg", cv::Mat(h, w, CV_8SC1, (char*)(grid_map_msg.data.data())));
 	cv::imshow("grid_map_thresh_resized", grid_map_thresh_resized);
-	cv::imshow("grid_map", grid_map);
+	//cv::imshow("grid_map", grid_map);
 	int key = cv::waitKey(1) % 256;
 	if (key == 27) {
 		cv::destroyAllWindows();
