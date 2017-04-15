@@ -54,14 +54,15 @@ unsigned int n_kf_received;
 bool loop_closure_being_processed = false;
 ros::Publisher pub_grid_map;
 nav_msgs::OccupancyGrid grid_map_msg;
-#ifdef COMPILEDWITHC11
-std::chrono::steady_clock::time_point start_time, end_time;
-#else
-std::chrono::monotonic_clock::time_point start_time, end_time;
-#endif
-bool got_start_time;
-MoveBaseClient ac;
-move_base_msgs::MoveBaseGoal goal;
+
+//#ifdef COMPILEDWITHC11
+//std::chrono::steady_clock::time_point start_time, end_time;
+//#else
+//std::chrono::monotonic_clock::time_point start_time, end_time;
+//#endif
+//bool got_start_time;
+//MoveBaseClient ac;
+//move_base_msgs::MoveBaseGoal goal;
 
 float kf_pos_x, kf_pos_z;
 int kf_pos_grid_x, kf_pos_grid_z;
@@ -90,21 +91,21 @@ int main(int argc, char **argv){
 	ros::init(argc, argv, "Monosub");
 	ros::start();
 
-	//tell the action client that we want to spin a thread by default
-	ac = MoveBaseClient("move_base", true);
+	////tell the action client that we want to spin a thread by default
+	//ac = MoveBaseClient("move_base", true);
 
-	//wait for the action server to come up
-	while (!ac.waitForServer(ros::Duration(5.0))){
-		ROS_INFO("Waiting for the move_base action server to come up");
-	}
+	////wait for the action server to come up
+	//while (!ac.waitForServer(ros::Duration(5.0))){
+	//	ROS_INFO("Waiting for the move_base action server to come up");
+	//}
 
-	//we'll send a goal to the robot to move 1 meter forward
-	goal.target_pose.header.frame_id = "base_link";
+	////we'll send a goal to the robot to move 1 meter forward
+	//goal.target_pose.header.frame_id = "base_link";
+	//got_start_time = false;
 
 	parseParams(argc, argv);
 	printParams();
 
-	got_start_time = false;
 
 	grid_max_x = cloud_max_x*scale_factor;
 	grid_min_x = cloud_min_x*scale_factor;
@@ -217,17 +218,18 @@ void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 
 	grid_map_msg.info.map_load_time = ros::Time::now();
 	pub_grid_map.publish(grid_map_msg);
-	goal.target_pose.header.stamp = ros::Time::now();
-	goal.target_pose.pose.position.x = kf_pos_grid_x;
-	goal.target_pose.pose.position.y = kf_pos_grid_z;
-	goal.target_pose.pose.orientation = pts_and_pose->poses[0].orientation;
-	ROS_INFO("Sending goal");
-	ac.sendGoal(goal);
-	ac.waitForResult();
-	if (ac.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
-		ROS_INFO("Hooray, the base moved 1 meter forward");
-	else
-		ROS_INFO("The base failed to move forward 1 meter for some reason");
+
+	//goal.target_pose.header.stamp = ros::Time::now();
+	//goal.target_pose.pose.position.x = kf_pos_grid_x;
+	//goal.target_pose.pose.position.y = kf_pos_grid_z;
+	//goal.target_pose.pose.orientation = pts_and_pose->poses[0].orientation;
+	//ROS_INFO("Sending goal");
+	//ac.sendGoal(goal);
+	//ac.waitForResult();
+	//if (ac.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+	//	ROS_INFO("Hooray, the base moved 1 meter forward");
+	//else
+	//	ROS_INFO("The base failed to move forward 1 meter for some reason");
 }
 void loopClosingCallback(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts){
 	//ROS_INFO("Received points and pose: [%s]{%d}", pts_and_pose->header.frame_id.c_str(),

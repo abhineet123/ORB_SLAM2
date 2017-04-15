@@ -86,7 +86,7 @@ rosrun ORB_SLAM2 Monosub 10 0.5 20 -10 20 -10 0.55 0.50 1 5
 
 running rosbag of recording:
 rosbag play "/media/abhineet/Win 8/bags/2017-04-03-20-35-36.bag" -r 0.5
-rosbag play 2017-04-09-22-08-04.bag -r 0.5
+rosbag play ~/2017-04-09-22-08-04.bag -r 0.5
 rosbag play "/media/abhineet/Win 8/bags/2017-04-03-13-37-07.bag" -r 0.5
 
 running rviz with preloaded map display and topic name:
