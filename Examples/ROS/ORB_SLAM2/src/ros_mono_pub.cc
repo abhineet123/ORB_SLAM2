@@ -144,6 +144,13 @@ int main(int argc, char **argv){
 	}
 	//ros::spin();
 
+	mkdir("results", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	SLAM.getMap()->Save("results//map_pts_out.obj");
+	SLAM.getMap()->SaveWithTimestamps("results//map_pts_and_keyframes.txt");
+	// Save camera trajectory
+	SLAM.SaveKeyFrameTrajectoryTUM("results//key_frame_trajectory.txt");
+
+
 	// Stop all threads
 	SLAM.Shutdown();
 	//geometry_msgs::PoseArray pt_array;
