@@ -9,6 +9,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include "sensor_msgs/PointCloud2.h"
 #include "geometry_msgs/PoseStamped.h"
+#include "geometry_msgs/PoseWithCovarianceStamped.h"
 #include "geometry_msgs/PoseArray.h"
 #include "nav_msgs/OccupancyGrid.h"
 
@@ -42,6 +43,9 @@ float upper_left_x = -1.5;
 float upper_left_y = -2.5;
 const int resolution = 10;
 unsigned int use_local_counters = 0;
+// no. of keyframes between successive goal messages are published
+unsigned int goal_gap = 20;
+
 
 float grid_max_x, grid_min_x,grid_max_z, grid_min_z;
 cv::Mat global_occupied_counter, global_visit_counter;
@@ -53,6 +57,8 @@ int h, w;
 unsigned int n_kf_received;
 bool loop_closure_being_processed = false;
 ros::Publisher pub_grid_map;
+ros::Publisher pub_goal;
+ros::Publisher pub_initial_pose;
 nav_msgs::OccupancyGrid grid_map_msg;
 
 //#ifdef COMPILEDWITHC11
@@ -61,11 +67,12 @@ nav_msgs::OccupancyGrid grid_map_msg;
 //std::chrono::monotonic_clock::time_point start_time, end_time;
 //#endif
 //bool got_start_time;
-//MoveBaseClient ac;
-//move_base_msgs::MoveBaseGoal goal;
 
 float kf_pos_x, kf_pos_z;
 int kf_pos_grid_x, kf_pos_grid_z;
+geometry_msgs::Quaternion kf_orientation;
+unsigned int kf_id = 0;
+unsigned int init_pose_id = 0, goal_id = 0;
 
 using namespace std;
 
@@ -92,16 +99,14 @@ int main(int argc, char **argv){
 	ros::start();
 
 	////tell the action client that we want to spin a thread by default
-	//ac = MoveBaseClient("move_base", true);
-
+	//MoveBaseClient ac("move_base", true);
+	//move_base_msgs::MoveBaseGoal goal;
 	////wait for the action server to come up
 	//while (!ac.waitForServer(ros::Duration(5.0))){
 	//	ROS_INFO("Waiting for the move_base action server to come up");
 	//}
-
 	////we'll send a goal to the robot to move 1 meter forward
 	//goal.target_pose.header.frame_id = "base_link";
-	//got_start_time = false;
 
 	parseParams(argc, argv);
 	printParams();
@@ -150,7 +155,8 @@ int main(int argc, char **argv){
 	ros::Subscriber sub_pts_and_pose = nodeHandler.subscribe("pts_and_pose", 1000, ptCallback);
 	ros::Subscriber sub_all_kf_and_pts = nodeHandler.subscribe("all_kf_and_pts", 1000, loopClosingCallback);
 	pub_grid_map = nodeHandler.advertise<nav_msgs::OccupancyGrid>("grid_map", 1000);
-
+	pub_goal = nodeHandler.advertise<geometry_msgs::PoseStamped>("move_base_simple/goal", 1000);
+	pub_initial_pose = nodeHandler.advertise<geometry_msgs::PoseWithCovarianceStamped>("initialpose", 1000);
 
 	//ros::Subscriber sub_cloud = nodeHandler.subscribe("cloud_in", 1000, cloudCallback);
 	//ros::Subscriber sub_kf = nodeHandler.subscribe("camera_pose", 1000, kfCallback);
@@ -204,9 +210,7 @@ void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 //#endif
 //		got_start_time = true;
 //	}
-
 	if (loop_closure_being_processed){ return; }
-
 	updateGridMap(pts_and_pose);
 
 //#ifdef COMPILEDWITHC11
@@ -218,6 +222,32 @@ void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 
 	grid_map_msg.info.map_load_time = ros::Time::now();
 	pub_grid_map.publish(grid_map_msg);
+
+	if (kf_id == 0) {
+		geometry_msgs::PoseWithCovariance init_pose;
+		init_pose.pose.position.x = kf_pos_grid_x;
+		init_pose.pose.position.y = kf_pos_grid_z;
+		init_pose.pose.position.z = 0;
+		init_pose.pose.orientation = kf_orientation;
+		cv::Mat(6, 6, CV_64FC1, init_pose.covariance.elems).setTo(0);
+		geometry_msgs::PoseWithCovarianceStamped init_pose_stamped;
+		init_pose_stamped.header.frame_id = "base_frame";
+		init_pose_stamped.header.stamp = ros::Time::now();
+		init_pose_stamped.header.seq = ++init_pose_id;
+		init_pose_stamped.pose = init_pose;
+		pub_initial_pose.publish(init_pose_stamped);
+	}
+	else if (kf_id % goal_gap == 0) {
+		geometry_msgs::PoseStamped goal;
+		goal.pose.position.x = kf_pos_grid_x;
+		goal.pose.position.y = kf_pos_grid_z;
+		goal.pose.orientation = kf_orientation;
+		goal.header.frame_id = "base_frame";
+		goal.header.stamp = ros::Time::now();
+		goal.header.seq = ++goal_id;
+		pub_goal.publish(goal);
+	}
+	++kf_id;
 
 	//goal.target_pose.header.stamp = ros::Time::now();
 	//goal.target_pose.pose.position.x = kf_pos_grid_x;
@@ -362,7 +392,7 @@ void updateGridMap(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 	//printf("Received frame %u \n", pts_and_pose->header.seq);
 
 	const geometry_msgs::Point &kf_location = pts_and_pose->poses[0].position;
-	//const geometry_msgs::Quaternion &kf_orientation = pts_and_pose->poses[0].orientation;
+	kf_orientation = pts_and_pose->poses[0].orientation;
 
 	kf_pos_x = kf_location.x*scale_factor;
 	kf_pos_z = kf_location.z*scale_factor;
