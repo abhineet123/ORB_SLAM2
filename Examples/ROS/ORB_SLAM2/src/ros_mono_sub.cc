@@ -425,16 +425,6 @@ void updateGridMap(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 	const geometry_msgs::Point &kf_location = pts_and_pose->poses[0].position;
 	kf_orientation = pts_and_pose->poses[0].orientation;
 
-	if (filter_ground_points){
-		Eigen::Vector4d kf_orientation_eig(kf_orientation.w, kf_orientation.x, kf_orientation.y, kf_orientation.z);
-		kf_orientation_eig.array() /= kf_orientation_eig.norm();
-		Eigen::Matrix3d keyframe_rotation = Eigen::Quaterniond(kf_orientation_eig).toRotationMatrix();
-		Eigen::Vector3d keyframe_translation(kf_location.x, kf_location.y, kf_location.z);
-		transform_mat.setIdentity(); 
-		transform_mat.topLeftCorner<3, 3>() = keyframe_rotation.transpose();
-		transform_mat.bottomLeftCorner<1, 3>() = (-keyframe_rotation.transpose() * keyframe_translation).transpose();
-	}
-
 	kf_pos_x = kf_location.x*scale_factor;
 	kf_pos_z = kf_location.z*scale_factor;
 
@@ -446,7 +436,18 @@ void updateGridMap(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 
 	if (kf_pos_grid_z < 0 || kf_pos_grid_z >= h)
 		return;
+
 	++n_kf_received;
+
+	if (filter_ground_points){
+		Eigen::Vector4d kf_orientation_eig(kf_orientation.w, kf_orientation.x, kf_orientation.y, kf_orientation.z);
+		kf_orientation_eig.array() /= kf_orientation_eig.norm();
+		Eigen::Matrix3d keyframe_rotation = Eigen::Quaterniond(kf_orientation_eig).toRotationMatrix();
+		Eigen::Vector3d keyframe_translation(kf_location.x, kf_location.y, kf_location.z);
+		transform_mat.setIdentity();
+		transform_mat.topLeftCorner<3, 3>() = keyframe_rotation.transpose();
+		transform_mat.bottomLeftCorner<1, 3>() = (-keyframe_rotation.transpose() * keyframe_translation).transpose();
+	}
 	unsigned int n_pts = pts_and_pose->poses.size() - 1;
 	//printf("Processing key frame %u and %u points\n",n_kf_received, n_pts);
 	processMapPts(pts_and_pose->poses, n_pts, 1, kf_pos_grid_x, kf_pos_grid_z);
@@ -475,7 +476,7 @@ void resetGridMap(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts){
 	unsigned int id = 0;
 	for (unsigned int kf_id = 0; kf_id < n_kf; ++kf_id){
 		const geometry_msgs::Point &kf_location = all_kf_and_pts->poses[++id].position;
-		//const geometry_msgs::Quaternion &kf_orientation = pts_and_pose->poses[0].orientation;
+		kf_orientation = all_kf_and_pts->poses[id].orientation;
 		unsigned int n_pts = all_kf_and_pts->poses[++id].position.x;
 		if ((unsigned int)(all_kf_and_pts->poses[id].position.y) != n_pts ||
 			(unsigned int)(all_kf_and_pts->poses[id].position.z) != n_pts) {
@@ -498,6 +499,15 @@ void resetGridMap(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts){
 			printf("resetGridMap :: Unexpected end of the input array while processing keyframe %u with %u points: only %u out of %u elements found\n",
 				kf_id, n_pts, all_kf_and_pts->poses.size(), id + n_pts);
 			return;
+		}
+		if (filter_ground_points){
+			Eigen::Vector4d kf_orientation_eig(kf_orientation.w, kf_orientation.x, kf_orientation.y, kf_orientation.z);
+			kf_orientation_eig.array() /= kf_orientation_eig.norm();
+			Eigen::Matrix3d keyframe_rotation = Eigen::Quaterniond(kf_orientation_eig).toRotationMatrix();
+			Eigen::Vector3d keyframe_translation(kf_location.x, kf_location.y, kf_location.z);
+			transform_mat.setIdentity();
+			transform_mat.topLeftCorner<3, 3>() = keyframe_rotation.transpose();
+			transform_mat.bottomLeftCorner<1, 3>() = (-keyframe_rotation.transpose() * keyframe_translation).transpose();
 		}
 		processMapPts(all_kf_and_pts->poses, n_pts, id + 1, kf_pos_grid_x, kf_pos_grid_z);
 		id += n_pts;
@@ -657,9 +667,9 @@ void printParams() {
 	printf("use_local_counters: %d\n", use_local_counters);
 	printf("visit_thresh: %d\n", visit_thresh);
 	printf("use_gaussian_counters: %d\n", use_gaussian_counters);
-	printf("show_camera_location: %d\n", show_camera_location);
 	printf("add_contour: %d\n", add_contour);
 	printf("filter_ground_points: %d\n", filter_ground_points);
+	printf("show_camera_location: %d\n", show_camera_location);
 	printf("gaussian_kernel_size: %d\n", gaussian_kernel_size);
 	printf("cam_radius: %d\n", cam_radius);
 }
