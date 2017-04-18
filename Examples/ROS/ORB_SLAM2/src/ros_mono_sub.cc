@@ -43,6 +43,12 @@ float upper_left_x = -1.5;
 float upper_left_y = -2.5;
 const int resolution = 10;
 unsigned int use_local_counters = 0;
+unsigned int use_gaussian_counters = 0;
+unsigned int gaussian_kernel_size = 3;
+bool show_camera_location = false;
+bool add_contour = false;
+int cam_radius = 2;
+
 // no. of keyframes between successive goal messages are published
 unsigned int goal_gap = 20;
 
@@ -52,6 +58,8 @@ cv::Mat global_occupied_counter, global_visit_counter;
 cv::Mat local_occupied_counter, local_visit_counter;
 cv::Mat local_map_pt_mask;
 cv::Mat grid_map, grid_map_int, grid_map_thresh, grid_map_thresh_resized;
+cv::Mat grid_map_rgb;
+cv::Mat gauss_kernel;
 float norm_factor_x, norm_factor_z;
 int h, w;
 unsigned int n_kf_received;
@@ -124,9 +132,9 @@ int main(int argc, char **argv){
 	w = grid_res_x;
 	printf("grid_size: (%d, %d)\n", h, w);
 	n_kf_received = 0;
-
-	global_occupied_counter.create(h, w, CV_32SC1);
-	global_visit_counter.create(h, w, CV_32SC1);
+	
+	global_occupied_counter.create(h, w, CV_32FC1);
+	global_visit_counter.create(h, w, CV_32FC1);
 	global_occupied_counter.setTo(cv::Scalar(0));
 	global_visit_counter.setTo(cv::Scalar(0));
 
@@ -140,11 +148,14 @@ int main(int argc, char **argv){
 	grid_map.create(h, w, CV_32FC1);
 	grid_map_thresh.create(h, w, CV_8UC1);
 	grid_map_thresh_resized.create(h*resize_factor, w*resize_factor, CV_8UC1);
+	grid_map_rgb.create(h*resize_factor, w*resize_factor, CV_8UC3);
 	printf("output_size: (%d, %d)\n", grid_map_thresh_resized.rows, grid_map_thresh_resized.cols);
 
-	local_occupied_counter.create(h, w, CV_32SC1);
-	local_visit_counter.create(h, w, CV_32SC1);
+	local_occupied_counter.create(h, w, CV_32FC1);
+	local_visit_counter.create(h, w, CV_32FC1);
 	local_map_pt_mask.create(h, w, CV_8UC1);
+
+	gauss_kernel = cv::getGaussianKernel(gaussian_kernel_size, -1);
 
 	norm_factor_x = float(grid_res_x - 1) / float(grid_max_x - grid_min_x);
 	norm_factor_z = float(grid_res_z - 1) / float(grid_max_z - grid_min_z);
@@ -154,7 +165,7 @@ int main(int argc, char **argv){
 	ros::NodeHandle nodeHandler;
 	ros::Subscriber sub_pts_and_pose = nodeHandler.subscribe("pts_and_pose", 1000, ptCallback);
 	ros::Subscriber sub_all_kf_and_pts = nodeHandler.subscribe("all_kf_and_pts", 1000, loopClosingCallback);
-	pub_grid_map = nodeHandler.advertise<nav_msgs::OccupancyGrid>("grid_map", 1000);
+	pub_grid_map = nodeHandler.advertise<nav_msgs::OccupancyGrid>("map", 1000);
 	pub_goal = nodeHandler.advertise<geometry_msgs::PoseStamped>("move_base_simple/goal", 1000);
 	pub_initial_pose = nodeHandler.advertise<geometry_msgs::PoseWithCovarianceStamped>("initialpose", 1000);
 
@@ -307,7 +318,7 @@ void processMapPt(const geometry_msgs::Point &curr_pt, cv::Mat &occupied,
 		return;
 
 	// Increment the occupency account of the grid cell where map point is located
-	++occupied.at<int>(pt_pos_grid_z, pt_pos_grid_x);
+	++occupied.at<float>(pt_pos_grid_z, pt_pos_grid_x);
 	pt_mask.at<uchar>(pt_pos_grid_z, pt_pos_grid_x) = 255;
 
 	//cout << "----------------------" << endl;
@@ -335,10 +346,10 @@ void processMapPt(const geometry_msgs::Point &curr_pt, cv::Mat &occupied,
 	int ystep = (y0 < y1) ? 1 : -1;
 	for (int x = x0; x <= x1; ++x){
 		if (steep) {
-			++visited.at<int>(x, y);
+			++visited.at<float>(x, y);
 		}
 		else {
-			++visited.at<int>(y, x);
+			++visited.at<float>(y, x);
 		}
 		error = error + deltaerr;
 		if (error >= 0.5){
@@ -359,15 +370,20 @@ void processMapPts(const std::vector<geometry_msgs::Pose> &pts, unsigned int n_p
 			processMapPt(pts[pt_id].position, local_occupied_counter, local_visit_counter,
 				local_map_pt_mask, kf_pos_grid_x, kf_pos_grid_z);
 		}
+
 		for (int row = 0; row < h; ++row){
 			for (int col = 0; col < w; ++col){
 				if (local_map_pt_mask.at<uchar>(row, col) == 0) {
-					local_occupied_counter.at<int>(row, col) = 0;
+					local_occupied_counter.at<float>(row, col) = 0;
 				}
 				else {
-					local_occupied_counter.at<int>(row, col) = local_visit_counter.at<int>(row, col);
+					local_occupied_counter.at<float>(row, col) = local_visit_counter.at<float>(row, col);
 				}
 			}
+		}
+		if (use_gaussian_counters) {
+			cv::filter2D(local_occupied_counter, local_occupied_counter, CV_32F, gauss_kernel);
+			cv::filter2D(local_visit_counter, local_visit_counter, CV_32F, gauss_kernel);
 		}
 		global_occupied_counter += local_occupied_counter;
 		global_visit_counter += local_visit_counter;
@@ -476,8 +492,8 @@ void resetGridMap(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts){
 void getGridMap() {
 	for (int row = 0; row < h; ++row){
 		for (int col = 0; col < w; ++col){
-			int visits = global_visit_counter.at<int>(row, col);
-			int occupieds = global_occupied_counter.at<int>(row, col);
+			float visits = global_visit_counter.at<float>(row, col);
+			float occupieds = global_occupied_counter.at<float>(row, col);
 
 			if (visits <= visit_thresh){
 				grid_map.at<float>(row, col) = 0.5;
@@ -497,40 +513,57 @@ void getGridMap() {
 			grid_map_int.at<char>(row, col) = (1 - grid_map.at<float>(row, col)) * 100;
 		}
 	}
+	if (add_contour) {
+		std::vector<std::vector<cv::Point> > contours;
+		std::vector<cv::Vec4i> hierarchy;
+		cv::findContours(grid_map_thresh, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
+		for (unsigned int i = 0; i<contours.size(); i++){
+			drawContours(grid_map_thresh, contours, i, CV_RGB(0, 0, 0), 2, 8, hierarchy, 0, cv::Point());
+		}
+
+	}
 	cv::resize(grid_map_thresh, grid_map_thresh_resized, grid_map_thresh_resized.size());
 }
 void showGridMap(unsigned int id) {
 	cv::imshow("grid_map_msg", cv::Mat(h, w, CV_8SC1, (char*)(grid_map_msg.data.data())));
-	cv::imshow("grid_map_thresh_resized", grid_map_thresh_resized);
+	if (show_camera_location) {
+		grid_map_thresh_resized.convertTo(grid_map_rgb, grid_map_rgb.type());
+		cv::circle(grid_map_rgb, cv::Point(kf_pos_grid_x*resize_factor, kf_pos_grid_z*resize_factor),
+			cam_radius, CV_RGB(255, 0, 0));
+		cv::imshow("grid_map_thresh_resized", grid_map_rgb);
+	} else {
+		cv::imshow("grid_map_thresh_resized", grid_map_thresh_resized);
+	}	
 	//cv::imshow("grid_map", grid_map);
-	int key = cv::waitKey(1) % 256;
-	if (key == 27) {
+	int key = cv::waitKey(1);
+	int key_mod = key % 256;
+	if (key == 27 || key_mod == 27) {
 		cv::destroyAllWindows();
 		ros::shutdown();
 		exit(0);
 	}
-	else if (key == 'f') {
+	else if (key == 'f' || key_mod == 'f') {
 		free_thresh -= thresh_diff;
 		if (free_thresh <= occupied_thresh){ free_thresh = occupied_thresh + thresh_diff; }
 
 		printf("Setting free_thresh to: %f\n", free_thresh);
 	}
-	else if (key == 'F') {
+	else if (key == 'F' || key_mod == 'F') {
 		free_thresh += thresh_diff;
 		if (free_thresh > 1){ free_thresh = 1; }
 		printf("Setting free_thresh to: %f\n", free_thresh);
 	}
-	else if (key == 'o') {
+	else if (key == 'o' || key_mod == 'o') {
 		occupied_thresh -= thresh_diff;
 		if (free_thresh < 0){ free_thresh = 0; }
 		printf("Setting occupied_thresh to: %f\n", occupied_thresh);
 	}
-	else if (key == 'O') {
+	else if (key == 'O' || key_mod == 'O') {
 		occupied_thresh += thresh_diff;
 		if (occupied_thresh >= free_thresh){ occupied_thresh = free_thresh - thresh_diff; }
 		printf("Setting occupied_thresh to: %f\n", occupied_thresh);
 	}
-	else if (key == 's') {
+	else if (key == 's' || key_mod == 's' || key == 'S' || key_mod == 'S') {
 		saveMap(id);
 	}
 }
@@ -567,6 +600,21 @@ void parseParams(int argc, char **argv) {
 	if (argc > arg_id){
 		visit_thresh = atoi(argv[arg_id++]);
 	}
+	if (argc > arg_id){
+		use_gaussian_counters = atoi(argv[arg_id++]);
+	}
+	if (argc > arg_id){
+		gaussian_kernel_size = atoi(argv[arg_id++]);
+	}
+	if (argc > arg_id){
+		show_camera_location = atoi(argv[arg_id++]);
+	}
+	if (argc > arg_id){
+		cam_radius = atoi(argv[arg_id++]);
+	}
+	if (argc > arg_id){
+		add_contour = atoi(argv[arg_id++]);
+	}
 }
 
 void printParams() {
@@ -579,6 +627,10 @@ void printParams() {
 	printf("occupied_thresh: %f\n", occupied_thresh);
 	printf("use_local_counters: %d\n", use_local_counters);
 	printf("visit_thresh: %d\n", visit_thresh);
-
+	printf("use_gaussian_counters: %d\n", use_gaussian_counters);
+	printf("gaussian_kernel_size: %d\n", gaussian_kernel_size);
+	printf("show_camera_location: %d\n", show_camera_location);
+	printf("cam_radius: %d\n", cam_radius);
+	printf("add_contour: %d\n", add_contour);
 }
 
