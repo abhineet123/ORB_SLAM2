@@ -1,5 +1,3 @@
-//#include <Eigen/Dense>
-
 #include<iostream>
 #include<algorithm>
 #include<fstream>
@@ -25,8 +23,9 @@
 
 #include <move_base_msgs/MoveBaseAction.h>
 #include <actionlib/client/simple_action_client.h>
+#include <Eigen/Dense>
 
-typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
+//typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
 
 // parameters
 float scale_factor = 3;
@@ -44,12 +43,12 @@ float upper_left_y = -2.5;
 const int resolution = 10;
 unsigned int use_local_counters = 0;
 unsigned int use_gaussian_counters = 0;
-unsigned int gaussian_kernel_size = 3;
 bool show_camera_location = false;
 bool add_contour = false;
+bool filter_ground_points = false;
+unsigned int gaussian_kernel_size = 3;
 int cam_radius = 2;
-
-// no. of keyframes between successive goal messages are published
+// no. of keyframes between successive goal messages that are published
 unsigned int goal_gap = 20;
 
 
@@ -68,6 +67,7 @@ ros::Publisher pub_grid_map;
 ros::Publisher pub_goal;
 ros::Publisher pub_initial_pose;
 nav_msgs::OccupancyGrid grid_map_msg;
+Eigen::Matrix4d transform_mat;
 
 //#ifdef COMPILEDWITHC11
 //std::chrono::steady_clock::time_point start_time, end_time;
@@ -91,9 +91,6 @@ void kfCallback(const geometry_msgs::PoseStamped::ConstPtr& camera_pose);
 void saveMap(unsigned int id = 0);
 void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose);
 void loopClosingCallback(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts);
-void parseParams(int argc, char **argv);
-void printParams();
-void showGridMap(unsigned int id = 0);
 void getMixMax(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose,
 	geometry_msgs::Point& min_pt, geometry_msgs::Point& max_pt);
 void processMapPt(const geometry_msgs::Point &curr_pt, cv::Mat &occupied,
@@ -101,6 +98,9 @@ void processMapPt(const geometry_msgs::Point &curr_pt, cv::Mat &occupied,
 void processMapPts(const std::vector<geometry_msgs::Pose> &pts, unsigned int n_pts,
 	unsigned int start_id, int kf_pos_grid_x, int kf_pos_grid_z);
 void getGridMap();
+void showGridMap(unsigned int id = 0);
+void parseParams(int argc, char **argv);
+void printParams();
 
 int main(int argc, char **argv){
 	ros::init(argc, argv, "Monosub");
@@ -222,6 +222,7 @@ void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 //		got_start_time = true;
 //	}
 	if (loop_closure_being_processed){ return; }
+
 	updateGridMap(pts_and_pose);
 
 //#ifdef COMPILEDWITHC11
@@ -310,16 +311,26 @@ void processMapPt(const geometry_msgs::Point &curr_pt, cv::Mat &occupied,
 	int pt_pos_grid_x = int(floor((pt_pos_x - grid_min_x) * norm_factor_x));
 	int pt_pos_grid_z = int(floor((pt_pos_z - grid_min_z) * norm_factor_z));
 
-
 	if (pt_pos_grid_x < 0 || pt_pos_grid_x >= w)
 		return;
 
 	if (pt_pos_grid_z < 0 || pt_pos_grid_z >= h)
 		return;
-
-	// Increment the occupency account of the grid cell where map point is located
-	++occupied.at<float>(pt_pos_grid_z, pt_pos_grid_x);
-	pt_mask.at<uchar>(pt_pos_grid_z, pt_pos_grid_x) = 255;
+	bool is_ground_pt = false;
+	if (filter_ground_points){
+		float pt_pos_y = curr_pt.y*scale_factor;
+		Eigen::Vector4d transformed_point_location = transform_mat * Eigen::Vector4d(pt_pos_x, pt_pos_y, pt_pos_z, 1);
+		double transformed_point_height = transformed_point_location[1] / transformed_point_location[3];
+		is_ground_pt = transformed_point_height < 0;
+	}	
+	if (is_ground_pt) {
+		++visited.at<float>(pt_pos_grid_z, pt_pos_grid_x);
+	}
+	else {
+		// Increment the occupency account of the grid cell where map point is located
+		++occupied.at<float>(pt_pos_grid_z, pt_pos_grid_x);
+		pt_mask.at<uchar>(pt_pos_grid_z, pt_pos_grid_x) = 255;
+	}	
 
 	//cout << "----------------------" << endl;
 	//cout << okf_pos_grid_x << " " << okf_pos_grid_y << endl;
@@ -387,6 +398,10 @@ void processMapPts(const std::vector<geometry_msgs::Pose> &pts, unsigned int n_p
 		}
 		global_occupied_counter += local_occupied_counter;
 		global_visit_counter += local_visit_counter;
+		//cout << "local_occupied_counter: \n" << local_occupied_counter << "\n";
+		//cout << "global_occupied_counter: \n" << global_occupied_counter << "\n";
+		//cout << "local_visit_counter: \n" << local_visit_counter << "\n";
+		//cout << "global_visit_counter: \n" << global_visit_counter << "\n";
 	}
 	else {
 		for (unsigned int pt_id = start_id; pt_id < end_id; ++pt_id){
@@ -409,6 +424,16 @@ void updateGridMap(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 
 	const geometry_msgs::Point &kf_location = pts_and_pose->poses[0].position;
 	kf_orientation = pts_and_pose->poses[0].orientation;
+
+	if (filter_ground_points){
+		Eigen::Vector4d kf_orientation_eig(kf_orientation.w, kf_orientation.x, kf_orientation.y, kf_orientation.z);
+		kf_orientation_eig.array() /= kf_orientation_eig.norm();
+		Eigen::Matrix3d keyframe_rotation = Eigen::Quaterniond(kf_orientation_eig).toRotationMatrix();
+		Eigen::Vector3d keyframe_translation(kf_location.x, kf_location.y, kf_location.z);
+		transform_mat.setIdentity(); 
+		transform_mat.topLeftCorner<3, 3>() = keyframe_rotation.transpose();
+		transform_mat.bottomLeftCorner<1, 3>() = (-keyframe_rotation.transpose() * keyframe_translation).transpose();
+	}
 
 	kf_pos_x = kf_location.x*scale_factor;
 	kf_pos_z = kf_location.z*scale_factor;
@@ -605,16 +630,19 @@ void parseParams(int argc, char **argv) {
 		use_gaussian_counters = atoi(argv[arg_id++]);
 	}
 	if (argc > arg_id){
-		gaussian_kernel_size = atoi(argv[arg_id++]);
+		add_contour = atoi(argv[arg_id++]);
+	}
+	if (argc > arg_id){
+		filter_ground_points = atoi(argv[arg_id++]);
 	}
 	if (argc > arg_id){
 		show_camera_location = atoi(argv[arg_id++]);
 	}
 	if (argc > arg_id){
-		cam_radius = atoi(argv[arg_id++]);
+		gaussian_kernel_size = atoi(argv[arg_id++]);
 	}
 	if (argc > arg_id){
-		add_contour = atoi(argv[arg_id++]);
+		cam_radius = atoi(argv[arg_id++]);
 	}
 }
 
@@ -629,9 +657,10 @@ void printParams() {
 	printf("use_local_counters: %d\n", use_local_counters);
 	printf("visit_thresh: %d\n", visit_thresh);
 	printf("use_gaussian_counters: %d\n", use_gaussian_counters);
-	printf("gaussian_kernel_size: %d\n", gaussian_kernel_size);
 	printf("show_camera_location: %d\n", show_camera_location);
-	printf("cam_radius: %d\n", cam_radius);
 	printf("add_contour: %d\n", add_contour);
+	printf("filter_ground_points: %d\n", filter_ground_points);
+	printf("gaussian_kernel_size: %d\n", gaussian_kernel_size);
+	printf("cam_radius: %d\n", cam_radius);
 }
 
