@@ -48,6 +48,7 @@
 bool read_from_topic = false, read_from_camera = false;
 std::string image_topic = "/camera/image_raw";
 int all_pts_pub_gap = 0;
+bool show_viewer = true;
 
 vector<string> vstrImageFilenames;
 vector<double> vTimestamps;
@@ -89,7 +90,7 @@ int main(int argc, char **argv){
 	int n_images = vstrImageFilenames.size();
 
 	// Create SLAM system. It initializes all system threads and gets ready to process frames.
-	ORB_SLAM2::System SLAM(argv[1], argv[2], ORB_SLAM2::System::MONOCULAR, true);
+	ORB_SLAM2::System SLAM(argv[1], argv[2], ORB_SLAM2::System::MONOCULAR, show_viewer);
 	ros::NodeHandle nodeHandler;
 	//ros::Publisher pub_cloud = nodeHandler.advertise<sensor_msgs::PointCloud2>("cloud_in", 1000);
 	ros::Publisher pub_pts_and_pose = nodeHandler.advertise<geometry_msgs::PoseArray>("pts_and_pose", 1000);
@@ -108,7 +109,9 @@ int main(int argc, char **argv){
 #else
 		std::chrono::monotonic_clock::time_point t1 = std::chrono::monotonic_clock::now();
 #endif
-		for (int frame_id = 0; read_from_camera || frame_id < n_images; ++frame_id){
+		cv::namedWindow("Press r to reset");
+		int frame_id = 0;
+		while (read_from_camera || frame_id < n_images){
 			if (read_from_camera) {
 				cap_obj.read(im);
 #ifdef COMPILEDWITHC11
@@ -133,6 +136,21 @@ int main(int argc, char **argv){
 
 			publish(SLAM, pub_pts_and_pose, pub_all_kf_and_pts, frame_id);
 
+			++frame_id;
+
+			int key = cv::waitKey(1);
+			int key_mod = key % 256;
+			if (key == 'r' || key_mod == 'r' || key == 'r' || key_mod == 'r') {
+				printf("Resetting the SLAM system\n");
+				SLAM.Shutdown();
+				SLAM.reset(argv[2], show_viewer);
+#ifdef COMPILEDWITHC11
+				t1 = std::chrono::steady_clock::now();
+#else
+				t1 = std::chrono::monotonic_clock::now();
+#endif
+				frame_id = 0;
+			}
 			//cv::imshow("Press escape to exit", im);
 			//if (cv::waitKey(1) == 27) {
 			//	break;
@@ -400,10 +418,15 @@ bool parseParams(int argc, char **argv) {
 	else {
 		LoadImages(string(argv[3]), vstrImageFilenames, vTimestamps);
 	}
-	if (argc >= 5) {
-		all_pts_pub_gap = atoi(argv[4]);
+	int arg_id = 4;
+	if (argc > arg_id) {
+		all_pts_pub_gap = atoi(argv[arg_id++]);
+	}
+	if (argc > arg_id) {
+		show_viewer = atoi(argv[arg_id++]);
 	}
 	printf("all_pts_pub_gap: %d\n", all_pts_pub_gap);
+	printf("show_viewer: %d\n", show_viewer);
 	return 1;
 }
 

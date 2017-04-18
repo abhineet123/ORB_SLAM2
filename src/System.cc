@@ -31,7 +31,8 @@ namespace ORB_SLAM2
 {
 
 	System::System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor,
-		const bool bUseViewer) :mSensor(sensor), mpViewer(static_cast<Viewer*>(NULL)), mbReset(false), mbActivateLocalizationMode(false),
+		const bool bUseViewer) : 
+		mSensor(sensor), mpViewer(static_cast<Viewer*>(NULL)), mbReset(false), mbActivateLocalizationMode(false),
 		mbDeactivateLocalizationMode(false)
 	{
 		// Output welcome message
@@ -58,10 +59,13 @@ namespace ORB_SLAM2
 			exit(-1);
 		}
 
+		loadVocabulary(strVocFile);
+		reset(strSettingsFile, bUseViewer);
+	}
 
+	void System::loadVocabulary(const string &strVocFile) {
 		//Load ORB Vocabulary
 		cout << endl << "Loading ORB Vocabulary. This could take a while..." << endl;
-
 		mpVocabulary = new ORBVocabulary();
 		bool bVocLoad = mpVocabulary->loadFromTextFile(strVocFile);
 		if (!bVocLoad)
@@ -71,7 +75,9 @@ namespace ORB_SLAM2
 			exit(-1);
 		}
 		cout << "Vocabulary loaded!" << endl << endl;
+	}
 
+	void System::reset(const string &strSettingsFile, const bool bUseViewer) {
 		//Create KeyFrame Database
 		mpKeyFrameDatabase = new KeyFrameDatabase(*mpVocabulary);
 
@@ -113,6 +119,8 @@ namespace ORB_SLAM2
 		mpLoopCloser->SetTracker(mpTracker);
 		mpLoopCloser->SetLocalMapper(mpLocalMapper);
 	}
+
+
 
 	cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timestamp)
 	{
