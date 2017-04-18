@@ -521,10 +521,7 @@ void getGridMap() {
 		cv::Canny(grid_map_thresh, canny_output, thresh, thresh * 2, 3);
 		cv::imshow("canny_output", canny_output);
 		cv::findContours(canny_output, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
-		for (unsigned int i = 0; i<contours.size(); i++){
-			drawContours(grid_map_thresh, contours, i, CV_RGB(0, 0, 0), 2, 8, hierarchy, 0, cv::Point());
-		}
-
+		drawContours(grid_map_thresh, contours, -1, CV_RGB(0, 0, 0), 1, CV_AA, hierarchy, 0, cv::Point());
 	}
 	cv::resize(grid_map_thresh, grid_map_thresh_resized, grid_map_thresh_resized.size());
 }
