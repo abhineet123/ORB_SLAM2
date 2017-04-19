@@ -71,7 +71,8 @@ ros::Publisher pub_goal;
 ros::Publisher pub_initial_pose;
 nav_msgs::OccupancyGrid grid_map_msg;
 Eigen::Matrix4d transform_mat;
-
+geometry_msgs::PoseWithCovarianceStamped init_pose_stamped;
+tf::StampedTransform odom_to_map_transform_stamped;
 //#ifdef COMPILEDWITHC11
 //std::chrono::steady_clock::time_point start_time, end_time;
 //#else
@@ -185,8 +186,9 @@ int main(int argc, char **argv){
 	odom_to_map_transform.setRotation(q);
 	//br.sendTransform(tf::StampedTransform(odom_to_map_transform, ros::Time::now(), "base_footprint", "map"));
 	ros::Time tf_time = ros::Time::now();
+	odom_to_map_transform_stamped = tf::StampedTransform(odom_to_map_transform, tf_time, "map", "odom");	
 	//br.sendTransform(tf::StampedTransform(odom_to_map_transform, tf_time, "map", "base_footprint"));
-	br.sendTransform(tf::StampedTransform(odom_to_map_transform, tf_time, "map", "odom"));
+	br.sendTransform(odom_to_map_transform_stamped);
 
 	//ros::Subscriber sub_cloud = nodeHandler.subscribe("cloud_in", 1000, cloudCallback);
 	//ros::Subscriber sub_kf = nodeHandler.subscribe("camera_pose", 1000, kfCallback);
@@ -245,15 +247,7 @@ void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 	updateGridMap(pts_and_pose);
 
 	tf::TransformBroadcaster br;
-	tf::Transform odom_to_map_transform;
-	odom_to_map_transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
-	tf::Quaternion q;
-	q.setRPY(0, 0, 0);
-	odom_to_map_transform.setRotation(q);
-	//br.sendTransform(tf::StampedTransform(odom_to_map_transform, ros::Time::now(), "base_footprint", "map"));
-	ros::Time tf_time = ros::Time::now();
-	//br.sendTransform(tf::StampedTransform(odom_to_map_transform, tf_time, "map", "base_footprint"));
-	br.sendTransform(tf::StampedTransform(odom_to_map_transform, tf_time, "map", "odom"));
+	br.sendTransform(odom_to_map_transform_stamped);
 
 //#ifdef COMPILEDWITHC11
 //	end_time = std::chrono::steady_clock::now();
@@ -285,14 +279,12 @@ void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 		init_pose.pose.orientation.y = 0;
 		init_pose.pose.orientation.z = 0;
 		init_pose.pose.orientation.w = 1;
-		cv::Mat(6, 6, CV_64FC1, init_pose.covariance.elems).setTo(0);
-		geometry_msgs::PoseWithCovarianceStamped init_pose_stamped;
+		cv::Mat(6, 6, CV_64FC1, init_pose.covariance.elems).setTo(0);		
 		init_pose_stamped.header.frame_id = "map";
 		init_pose_stamped.header.stamp = ros::Time::now();
 		init_pose_stamped.header.seq = ++init_pose_id;
-		init_pose_stamped.pose = init_pose;
-		pub_initial_pose.publish(init_pose_stamped);
-	}
+		init_pose_stamped.pose = init_pose;		
+	}	
 	else if (kf_id % goal_gap == 0) {
 		geometry_msgs::PoseStamped goal;
 		goal.pose.position.x = kf_pos_grid_x_us;
@@ -306,6 +298,7 @@ void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 		goal.header.seq = ++goal_id;
 		pub_goal.publish(goal);
 	}
+	pub_initial_pose.publish(init_pose_stamped);
 	++kf_id;
 
 	//goal.target_pose.header.stamp = ros::Time::now();
