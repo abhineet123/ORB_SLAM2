@@ -253,7 +253,11 @@ void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 		init_pose.pose.position.x = kf_pos_grid_x;
 		init_pose.pose.position.y = kf_pos_grid_z;
 		init_pose.pose.position.z = 0;
-		init_pose.pose.orientation = kf_orientation;
+		//init_pose.pose.orientation = kf_orientation;
+		init_pose.pose.orientation.x = 0;
+		init_pose.pose.orientation.y = 0;
+		init_pose.pose.orientation.z = 0;
+		init_pose.pose.orientation.w = 1;
 		cv::Mat(6, 6, CV_64FC1, init_pose.covariance.elems).setTo(0);
 		geometry_msgs::PoseWithCovarianceStamped init_pose_stamped;
 		init_pose_stamped.header.frame_id = "map";
@@ -266,7 +270,10 @@ void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 		geometry_msgs::PoseStamped goal;
 		goal.pose.position.x = kf_pos_grid_x;
 		goal.pose.position.y = kf_pos_grid_z;
-		goal.pose.orientation = kf_orientation;
+		goal.pose.orientation.x = 0;
+		goal.pose.orientation.y = 0;
+		goal.pose.orientation.z = 0;
+		goal.pose.orientation.w = 1;
 		goal.header.frame_id = "map";
 		goal.header.stamp = ros::Time::now();
 		goal.header.seq = ++goal_id;
