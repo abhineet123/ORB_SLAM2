@@ -106,3 +106,8 @@ rosrun rviz rviz -d navigation.rviz
 roslaunch turtlebot_gazebo turtlebot_world.launch world_file:=/opt/ros/indigo/share/turtlebot_gazebo/worlds/empty.world
 roslaunch amcl_demo.launch
 roslaunch turtlebot_rviz_launchers view_navigation.launch
+---> record a rosbag of orbslam and grid mapping: <!--- 
+rosbag record pts_and_pose all_kf_and_pts map map_metadata move_base_simple/goal initialpose --output-name=~/rb_kitti00_gauss_height.bag
+---> play this rosbag  <!--- 
+rosbag play ~/rb_kitti00_gauss_height.bag
+---> 
