@@ -24,6 +24,7 @@
 #include <move_base_msgs/MoveBaseAction.h>
 #include <actionlib/client/simple_action_client.h>
 #include <Eigen/Dense>
+#include <tf/transform_broadcaster.h>
 
 //typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
 
@@ -171,8 +172,16 @@ int main(int argc, char **argv){
 	pub_grid_map_metadata = nodeHandler.advertise<nav_msgs::MapMetaData>("map_metadata", 1000);
 	pub_goal = nodeHandler.advertise<geometry_msgs::PoseStamped>("move_base_simple/goal", 1000);
 	pub_initial_pose = nodeHandler.advertise<geometry_msgs::PoseWithCovarianceStamped>("initialpose", 1000);
-
-	
+	tf::TransformBroadcaster br;
+	tf::Transform odom_to_map_transform;
+	odom_to_map_transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
+	tf::Quaternion q;
+	q.setRPY(0, 0, 0);
+	odom_to_map_transform.setRotation(q);
+	//br.sendTransform(tf::StampedTransform(odom_to_map_transform, ros::Time::now(), "base_footprint", "map"));
+	ros::Time tf_time = ros::Time::now();
+	//br.sendTransform(tf::StampedTransform(odom_to_map_transform, tf_time, "map", "base_footprint"));
+	br.sendTransform(tf::StampedTransform(odom_to_map_transform, tf_time, "map", "odom"));
 
 	//ros::Subscriber sub_cloud = nodeHandler.subscribe("cloud_in", 1000, cloudCallback);
 	//ros::Subscriber sub_kf = nodeHandler.subscribe("camera_pose", 1000, kfCallback);
@@ -229,6 +238,17 @@ void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 	if (loop_closure_being_processed){ return; }
 
 	updateGridMap(pts_and_pose);
+
+	tf::TransformBroadcaster br;
+	tf::Transform odom_to_map_transform;
+	odom_to_map_transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
+	tf::Quaternion q;
+	q.setRPY(0, 0, 0);
+	odom_to_map_transform.setRotation(q);
+	//br.sendTransform(tf::StampedTransform(odom_to_map_transform, ros::Time::now(), "base_footprint", "map"));
+	ros::Time tf_time = ros::Time::now();
+	//br.sendTransform(tf::StampedTransform(odom_to_map_transform, tf_time, "map", "base_footprint"));
+	br.sendTransform(tf::StampedTransform(odom_to_map_transform, tf_time, "map", "odom"));
 
 //#ifdef COMPILEDWITHC11
 //	end_time = std::chrono::steady_clock::now();

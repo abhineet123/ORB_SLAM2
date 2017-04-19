@@ -138,19 +138,19 @@ int main(int argc, char **argv){
 
 			++frame_id;
 
-			int key = cv::waitKey(1);
-			int key_mod = key % 256;
-			if (key == 'r' || key_mod == 'r' || key == 'r' || key_mod == 'r') {
-				printf("Resetting the SLAM system\n");
-				SLAM.Shutdown();
-				SLAM.reset(argv[2], show_viewer);
-#ifdef COMPILEDWITHC11
-				t1 = std::chrono::steady_clock::now();
-#else
-				t1 = std::chrono::monotonic_clock::now();
-#endif
-				frame_id = 0;
-			}
+//			int key = cv::waitKey(1);
+//			int key_mod = key % 256;
+//			if (key == 'r' || key_mod == 'r' || key == 'r' || key_mod == 'r') {
+//				printf("Resetting the SLAM system\n");
+//				SLAM.Shutdown();
+//				SLAM.reset(argv[2], show_viewer);
+//#ifdef COMPILEDWITHC11
+//				t1 = std::chrono::steady_clock::now();
+//#else
+//				t1 = std::chrono::monotonic_clock::now();
+//#endif
+//				frame_id = 0;
+//			}
 			//cv::imshow("Press escape to exit", im);
 			//if (cv::waitKey(1) == 27) {
 			//	break;
