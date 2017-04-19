@@ -62,6 +62,7 @@ cv::Mat grid_map, grid_map_int, grid_map_thresh, grid_map_thresh_resized;
 cv::Mat grid_map_rgb;
 cv::Mat gauss_kernel;
 float norm_factor_x, norm_factor_z;
+float norm_factor_x_us, norm_factor_z_us;
 int h, w;
 unsigned int n_kf_received;
 bool loop_closure_being_processed = false;
@@ -80,6 +81,7 @@ Eigen::Matrix4d transform_mat;
 
 float kf_pos_x, kf_pos_z;
 int kf_pos_grid_x, kf_pos_grid_z;
+geometry_msgs::Point kf_location;
 geometry_msgs::Quaternion kf_orientation;
 unsigned int kf_id = 0;
 unsigned int init_pose_id = 0, goal_id = 0;
@@ -159,6 +161,9 @@ int main(int argc, char **argv){
 	local_map_pt_mask.create(h, w, CV_8UC1);
 
 	gauss_kernel = cv::getGaussianKernel(gaussian_kernel_size, -1);
+
+	norm_factor_x_us = float(cloud_max_x - cloud_min_x - 1) / float(cloud_max_x - cloud_min_x);
+	norm_factor_z_us = float(cloud_max_z - cloud_min_z - 1) / float(cloud_max_z - cloud_min_z);
 
 	norm_factor_x = float(grid_res_x - 1) / float(grid_max_x - grid_min_x);
 	norm_factor_z = float(grid_res_z - 1) / float(grid_max_z - grid_min_z);
@@ -258,6 +263,8 @@ void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 //	double curr_time = std::chrono::duration_cast<std::chrono::duration<double>>(start_time - end_time).count();
 
 	grid_map_msg.info.map_load_time = ros::Time::now();
+	float kf_pos_grid_x_us = (kf_location.x - cloud_min_x) * norm_factor_x_us;
+	float kf_pos_grid_z_us = (kf_location.z - cloud_min_z) * norm_factor_z_us;
 	nav_msgs::MapMetaData map_metadata;
 	map_metadata.width = w;
 	map_metadata.height = h;
@@ -270,8 +277,8 @@ void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 	pub_grid_map_metadata.publish(map_metadata);
 	if (kf_id == 0) {
 		geometry_msgs::PoseWithCovariance init_pose;
-		init_pose.pose.position.x = kf_pos_grid_x;
-		init_pose.pose.position.y = kf_pos_grid_z;
+		init_pose.pose.position.x = kf_pos_grid_x_us;
+		init_pose.pose.position.y = kf_pos_grid_z_us;
 		init_pose.pose.position.z = 0;
 		//init_pose.pose.orientation = kf_orientation;
 		init_pose.pose.orientation.x = 0;
@@ -288,8 +295,8 @@ void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 	}
 	else if (kf_id % goal_gap == 0) {
 		geometry_msgs::PoseStamped goal;
-		goal.pose.position.x = kf_pos_grid_x;
-		goal.pose.position.y = kf_pos_grid_z;
+		goal.pose.position.x = kf_pos_grid_x_us;
+		goal.pose.position.y = kf_pos_grid_z_us;
 		goal.pose.orientation.x = 0;
 		goal.pose.orientation.y = 0;
 		goal.pose.orientation.z = 0;
@@ -462,7 +469,7 @@ void updateGridMap(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 
 	//printf("Received frame %u \n", pts_and_pose->header.seq);
 
-	const geometry_msgs::Point &kf_location = pts_and_pose->poses[0].position;
+	kf_location = pts_and_pose->poses[0].position;
 	kf_orientation = pts_and_pose->poses[0].orientation;
 
 	kf_pos_x = kf_location.x*scale_factor;
@@ -515,12 +522,16 @@ void resetGridMap(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts){
 #endif
 	unsigned int id = 0;
 	for (unsigned int kf_id = 0; kf_id < n_kf; ++kf_id){
-		const geometry_msgs::Point &kf_location = all_kf_and_pts->poses[++id].position;
+		kf_location = all_kf_and_pts->poses[++id].position;
 		kf_orientation = all_kf_and_pts->poses[id].orientation;
+
 		unsigned int n_pts = all_kf_and_pts->poses[++id].position.x;
 		if ((unsigned int)(all_kf_and_pts->poses[id].position.y) != n_pts ||
 			(unsigned int)(all_kf_and_pts->poses[id].position.z) != n_pts) {
 			printf("resetGridMap :: Unexpected formatting in the point count element for keyframe %d\n", kf_id);
+			printf("all_kf_and_pts->poses[%u].position.x: %u", id, (unsigned int)(all_kf_and_pts->poses[id].position.x));
+			printf("all_kf_and_pts->poses[%u].position.y: %u", id, (unsigned int)(all_kf_and_pts->poses[id].position.y));
+			printf("all_kf_and_pts->poses[%u].position.z: %u", id, (unsigned int)(all_kf_and_pts->poses[id].position.z));
 			return;
 		}
 		float kf_pos_x = kf_location.x*scale_factor;
