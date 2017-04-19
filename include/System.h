@@ -68,6 +68,7 @@ public:
 
     // Initialize the SLAM system. It launches the Local Mapping, Loop Closing and Viewer threads.
     System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor, const bool bUseViewer = true);
+
 	void loadVocabulary(const string &strVocFile);
 	void reset(const string &strSettingsFile, const bool bUseViewer);
 

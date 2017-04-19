@@ -43,9 +43,10 @@ float upper_left_y = -2.5;
 const int resolution = 10;
 unsigned int use_local_counters = 0;
 unsigned int use_gaussian_counters = 0;
-bool show_camera_location = false;
 bool add_contour = false;
 bool filter_ground_points = false;
+bool use_plane_normals = false;
+bool show_camera_location = false;
 unsigned int gaussian_kernel_size = 3;
 int cam_radius = 2;
 // no. of keyframes between successive goal messages that are published
@@ -63,7 +64,7 @@ float norm_factor_x, norm_factor_z;
 int h, w;
 unsigned int n_kf_received;
 bool loop_closure_being_processed = false;
-ros::Publisher pub_grid_map;
+ros::Publisher pub_grid_map, pub_grid_map_metadata;
 ros::Publisher pub_goal;
 ros::Publisher pub_initial_pose;
 nav_msgs::OccupancyGrid grid_map_msg;
@@ -167,8 +168,11 @@ int main(int argc, char **argv){
 	ros::Subscriber sub_pts_and_pose = nodeHandler.subscribe("pts_and_pose", 1000, ptCallback);
 	ros::Subscriber sub_all_kf_and_pts = nodeHandler.subscribe("all_kf_and_pts", 1000, loopClosingCallback);
 	pub_grid_map = nodeHandler.advertise<nav_msgs::OccupancyGrid>("map", 1000);
+	pub_grid_map_metadata = nodeHandler.advertise<nav_msgs::MapMetaData>("map_metadata", 1000);
 	pub_goal = nodeHandler.advertise<geometry_msgs::PoseStamped>("move_base_simple/goal", 1000);
 	pub_initial_pose = nodeHandler.advertise<geometry_msgs::PoseWithCovarianceStamped>("initialpose", 1000);
+
+	
 
 	//ros::Subscriber sub_cloud = nodeHandler.subscribe("cloud_in", 1000, cloudCallback);
 	//ros::Subscriber sub_kf = nodeHandler.subscribe("camera_pose", 1000, kfCallback);
@@ -234,8 +238,16 @@ void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 //	double curr_time = std::chrono::duration_cast<std::chrono::duration<double>>(start_time - end_time).count();
 
 	grid_map_msg.info.map_load_time = ros::Time::now();
+	nav_msgs::MapMetaData map_metadata;
+	map_metadata.width = w;
+	map_metadata.height = h;
+	map_metadata.resolution = 1.0 / scale_factor;
+	map_metadata.map_load_time = grid_map_msg.info.map_load_time;
+	map_metadata.origin.position.x = 0;
+	map_metadata.origin.position.y = 0;
+	map_metadata.origin.position.z = 0;
 	pub_grid_map.publish(grid_map_msg);
-
+	pub_grid_map_metadata.publish(map_metadata);
 	if (kf_id == 0) {
 		geometry_msgs::PoseWithCovariance init_pose;
 		init_pose.pose.position.x = kf_pos_grid_x;

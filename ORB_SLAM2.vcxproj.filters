@@ -249,6 +249,9 @@
     <ClCompile Include="Examples\ROS\ORB_SLAM2\src\ros_mono_sub.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Examples\ROS\ORB_SLAM2\src\ros_mono_sub_2.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\KeyFrame.h">

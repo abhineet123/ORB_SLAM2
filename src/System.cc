@@ -31,8 +31,7 @@ namespace ORB_SLAM2
 {
 
 	System::System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor,
-		const bool bUseViewer) : 
-		mSensor(sensor), mpViewer(static_cast<Viewer*>(NULL)), mbReset(false), mbActivateLocalizationMode(false),
+		const bool bUseViewer) : mSensor(sensor), mpViewer(static_cast<Viewer*>(NULL)), mbReset(false), mbActivateLocalizationMode(false),
 		mbDeactivateLocalizationMode(false)
 	{
 		// Output welcome message

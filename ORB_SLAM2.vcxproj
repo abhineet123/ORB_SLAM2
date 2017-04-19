@@ -85,6 +85,7 @@
     <ClCompile Include="examples\ros\orb_slam2\src\ros_mono.cc" />
     <ClCompile Include="Examples\ROS\ORB_SLAM2\src\ros_mono_pub.cc" />
     <ClCompile Include="Examples\ROS\ORB_SLAM2\src\ros_mono_sub.cc" />
+    <ClCompile Include="Examples\ROS\ORB_SLAM2\src\ros_mono_sub_2.cc" />
     <ClCompile Include="examples\ros\orb_slam2\src\ros_rgbd.cc" />
     <ClCompile Include="examples\ros\orb_slam2\src\ros_stereo.cc" />
     <ClCompile Include="examples\stereo\stereo_euroc.cc" />
