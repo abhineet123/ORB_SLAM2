@@ -109,7 +109,7 @@ int main(int argc, char **argv){
 #else
 		std::chrono::monotonic_clock::time_point t1 = std::chrono::monotonic_clock::now();
 #endif
-		cv::namedWindow("Press r to reset");
+		//cv::namedWindow("Press r to reset");
 		int frame_id = 0;
 		while (read_from_camera || frame_id < n_images){
 			if (read_from_camera) {

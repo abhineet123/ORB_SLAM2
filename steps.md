@@ -72,12 +72,12 @@ rosrun ORB_SLAM2 Monopub Vocabulary/ORBvoc.txt Examples/Monocular/mono.yaml -1
 ---> start publisher with custom topic: <!--- 
 rosrun ORB_SLAM2 Monopub Vocabulary/ORBvoc.txt Examples/Monocular/demo_cam.yaml -1 /usb_cam/image_raw
 ---> 
-rosrun ORB_SLAM2 Monosub <scale_factor> <resize_factor> <cloud_max_x> <cloud_min_x> <cloud_max_z> <cloud_min_z> <free_thresh> <occupied_thresh> <use_local_counters> <visit_thresh> <use_gaussian_counters> <add_contour> <filter_ground_points> <show_camera_location>
+rosrun ORB_SLAM2 Monosub <scale_factor> <resize_factor> <cloud_max_x> <cloud_min_x> <cloud_max_z> <cloud_min_z> <free_thresh> <occupied_thresh> <use_local_counters> <visit_thresh> <use_gaussian_counters> <add_contour> <filter_ground_points> <enable_goal_publishing> <show_camera_location>
 
 start subscriber on kitti 00: <!--- 
 rosrun ORB_SLAM2 Monosub 5 3 29 -25 48 -12 0.55 0.50 1 5
 rosrun ORB_SLAM2 Monosub 10 1 29 -25 48 -12 0.55 0.50 1 5
-rosrun ORB_SLAM2 Monosub 10 1 29 -25 48 -12 0.50 0.40 1 5 1 0 1
+rosrun ORB_SLAM2 Monosub 10 1 29 -25 48 -12 0.45 0.40 1 5 1 0 1
 
 rosrun ORB_SLAM2 Monosub 1 3 29 -25 48 -12 0.55 0.50 1 5
 ---> start subscriber on rosbag: <!--- 
@@ -91,13 +91,17 @@ rosrun ORB_SLAM2 Monosub 10 1 29 -25 48 -12 0.55 0.50 1 5 1 1
 rosrun ORB_SLAM2 Monosub 10 1 29 -25 48 -12 0.55 0.50 1 5 0 1
 ---> with Gaussian counters and ground point filtering and no contour: <!--- 
 rosrun ORB_SLAM2 Monosub 10 1 29 -25 48 -12 0.55 0.50 1 5 1 0 1
+rosrun ORB_SLAM2 Monosub 10 1 29 -25 48 -12 0.55 0.50 1 5 1 0 1 1
 ---> without Gaussian counters and with ground point filtering and no contour: <!--- 
 rosrun ORB_SLAM2 Monosub 10 1 29 -25 48 -12 0.55 0.50 1 5 0 0 1
 ---> with camera location <!--- 
-rosrun ORB_SLAM2 Monosub 10 1 29 -25 48 -12 0.55 0.50 1 5 1 1 1 0
+rosrun ORB_SLAM2 Monosub 20 1 10 -15 20 -10 0.55 0.50 1 5 1 0 1
+rosrun ORB_SLAM2 Monosub 20 1 10 -15 20 -10 0.55 0.50 1 5 1 1 1
+rosrun ORB_SLAM2 Monosub 20 1 10 -15 20 -10 0.55 0.50 1 5 0 1 1 
+rosrun ORB_SLAM2 Monosub 10 2 10 -15 20 -10 0.55 0.50 1 5 0 1 0
 ---> running rosbag of recording: <!--- 
 rosbag play "/media/abhineet/Win 8/bags/2017-04-03-20-35-36.bag" -r 0.5
-rosbag play ~/2017-04-09-22-08-04.bag -r 0.5
+rosbag play "/media/abhineet/Win 8/bags/2017-04-09-22-08-04.bag"
 rosbag play "/media/abhineet/Win 8/bags/2017-04-03-13-37-07.bag" -r 0.5
 ---> running rviz with preloaded map display and topic name: <!--- 
 rosrun rviz rviz -d grid_map.rviz
@@ -105,9 +109,13 @@ rosrun rviz rviz -d navigation.rviz
 ---> test sequence to get goal publishing thing working: <!--- 
 roslaunch turtlebot_gazebo turtlebot_world.launch world_file:=/opt/ros/indigo/share/turtlebot_gazebo/worlds/empty.world
 roslaunch amcl_demo.launch
-roslaunch turtlebot_rviz_launchers view_navigation.launch
+roslaunch view_navigation.launch
+rosrun robot_pose_publisher robot_pose_publisher
 ---> record a rosbag of orbslam and grid mapping: <!--- 
 rosbag record pts_and_pose all_kf_and_pts map map_metadata move_base_simple/goal initialpose --output-name=~/rb_kitti00_gauss_height.bag
 ---> play this rosbag  <!--- 
 rosbag play ~/rb_kitti00_gauss_height.bag
+rosbag play ~/rb_kitti00_pub.bag
+rosbag play ~/rb_cam_csc3_pub.bag
 ---> 
+

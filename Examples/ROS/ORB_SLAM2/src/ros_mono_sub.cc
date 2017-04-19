@@ -47,11 +47,12 @@ unsigned int use_gaussian_counters = 0;
 bool add_contour = false;
 bool filter_ground_points = false;
 bool use_plane_normals = false;
-bool show_camera_location = false;
+bool show_camera_location = true;
 unsigned int gaussian_kernel_size = 3;
-int cam_radius = 2;
+int cam_radius = 4;
 // no. of keyframes between successive goal messages that are published
 unsigned int goal_gap = 20;
+bool enable_goal_publishing = false;
 
 
 float grid_max_x, grid_min_x,grid_max_z, grid_min_z;
@@ -68,11 +69,14 @@ unsigned int n_kf_received;
 bool loop_closure_being_processed = false;
 ros::Publisher pub_grid_map, pub_grid_map_metadata;
 ros::Publisher pub_goal;
-ros::Publisher pub_initial_pose;
+ros::Publisher pub_initial_pose, pub_current_pose, pub_current_particles;
 nav_msgs::OccupancyGrid grid_map_msg;
 Eigen::Matrix4d transform_mat;
-geometry_msgs::PoseWithCovarianceStamped init_pose_stamped;
+geometry_msgs::PoseWithCovarianceStamped init_pose_stamped, curr_pose_stamped;
 tf::StampedTransform odom_to_map_transform_stamped;
+geometry_msgs::PoseStamped goal;
+geometry_msgs::PoseWithCovariance init_pose, curr_pose;
+
 //#ifdef COMPILEDWITHC11
 //std::chrono::steady_clock::time_point start_time, end_time;
 //#else
@@ -176,8 +180,12 @@ int main(int argc, char **argv){
 	ros::Subscriber sub_all_kf_and_pts = nodeHandler.subscribe("all_kf_and_pts", 1000, loopClosingCallback);
 	pub_grid_map = nodeHandler.advertise<nav_msgs::OccupancyGrid>("map", 1000);
 	pub_grid_map_metadata = nodeHandler.advertise<nav_msgs::MapMetaData>("map_metadata", 1000);
-	pub_goal = nodeHandler.advertise<geometry_msgs::PoseStamped>("move_base_simple/goal", 1000);
-	pub_initial_pose = nodeHandler.advertise<geometry_msgs::PoseWithCovarianceStamped>("initialpose", 1000);
+	if (enable_goal_publishing) {
+		pub_goal = nodeHandler.advertise<geometry_msgs::PoseStamped>("move_base_simple/goal", 1000);
+		pub_initial_pose = nodeHandler.advertise<geometry_msgs::PoseWithCovarianceStamped>("initialpose", 1000, true);
+		pub_current_pose = nodeHandler.advertise<geometry_msgs::Pose>("robot_pose", 1000, true);
+		pub_current_particles = nodeHandler.advertise<geometry_msgs::PoseArray>("particlecloud", 1000, true);
+	}
 	tf::TransformBroadcaster br;
 	tf::Transform odom_to_map_transform;
 	odom_to_map_transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
@@ -186,13 +194,15 @@ int main(int argc, char **argv){
 	odom_to_map_transform.setRotation(q);
 	//br.sendTransform(tf::StampedTransform(odom_to_map_transform, ros::Time::now(), "base_footprint", "map"));
 	ros::Time tf_time = ros::Time::now();
-	odom_to_map_transform_stamped = tf::StampedTransform(odom_to_map_transform, tf_time, "map", "odom");	
 	//br.sendTransform(tf::StampedTransform(odom_to_map_transform, tf_time, "map", "base_footprint"));
-	br.sendTransform(odom_to_map_transform_stamped);
+	br.sendTransform(tf::StampedTransform(odom_to_map_transform, tf_time, "map", "odom"));
 
 	//ros::Subscriber sub_cloud = nodeHandler.subscribe("cloud_in", 1000, cloudCallback);
 	//ros::Subscriber sub_kf = nodeHandler.subscribe("camera_pose", 1000, kfCallback);
 	//ros::Subscriber sub = nodeHandler.subscribe("/camera/image_raw", 1, &ImageGrabber::GrabImage, &igb);
+
+	cv::namedWindow("grid_map_thresh_resized", CV_WINDOW_NORMAL);
+	cv::namedWindow("grid_map_msg", CV_WINDOW_NORMAL);
 
 	ros::spin();
 	ros::shutdown();
@@ -247,7 +257,15 @@ void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 	updateGridMap(pts_and_pose);
 
 	tf::TransformBroadcaster br;
-	br.sendTransform(odom_to_map_transform_stamped);
+	tf::Transform odom_to_map_transform;
+	odom_to_map_transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
+	tf::Quaternion q;
+	q.setRPY(0, 0, 0);
+	odom_to_map_transform.setRotation(q);
+	//br.sendTransform(tf::StampedTransform(odom_to_map_transform, ros::Time::now(), "base_footprint", "map"));
+	ros::Time tf_time = ros::Time::now();
+    //br.sendTransform(tf::StampedTransform(odom_to_map_transform, tf_time, "map", "base_footprint"));
+	br.sendTransform(tf::StampedTransform(odom_to_map_transform, tf_time, "map", "odom"));
 
 //#ifdef COMPILEDWITHC11
 //	end_time = std::chrono::steady_clock::now();
@@ -259,6 +277,63 @@ void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 	grid_map_msg.info.map_load_time = ros::Time::now();
 	float kf_pos_grid_x_us = (kf_location.x - cloud_min_x) * norm_factor_x_us;
 	float kf_pos_grid_z_us = (kf_location.z - cloud_min_z) * norm_factor_z_us;
+	if (enable_goal_publishing) {
+		if (kf_id == 0) {
+			init_pose.pose.position.x = kf_pos_grid_x_us;
+			init_pose.pose.position.y = kf_pos_grid_z_us;
+			ROS_INFO("Publishing initial pose: (%f, %f)\n", kf_pos_grid_x_us, kf_pos_grid_z_us);
+			init_pose.pose.position.z = 0;
+			//init_pose.pose.orientation = kf_orientation;
+			init_pose.pose.orientation.x = 0;
+			init_pose.pose.orientation.y = 0;
+			init_pose.pose.orientation.z = 0;
+			init_pose.pose.orientation.w = 1;
+			cv::Mat(6, 6, CV_64FC1, init_pose.covariance.elems).setTo(0);
+			init_pose_stamped.header.frame_id = "map";
+			init_pose_stamped.header.stamp = ros::Time::now();
+			init_pose_stamped.header.seq = ++init_pose_id;
+			init_pose_stamped.pose = init_pose;
+			pub_initial_pose.publish(init_pose_stamped);
+			pub_current_pose.publish(init_pose.pose);
+			geometry_msgs::PoseArray curr_particles;
+			curr_particles.header = init_pose_stamped.header;
+			curr_particles.poses.push_back(init_pose.pose);
+			pub_current_particles.publish(curr_particles);
+		}
+		else if (kf_id % goal_gap == 0) {
+			if (goal_id>0){
+				curr_pose.pose = goal.pose;
+				ROS_INFO("Publishing current pose: (%f, %f)\n",
+					curr_pose.pose.position.x, curr_pose.pose.position.y);
+				//curr_pose.pose.position.z = 0;
+				////init_pose.pose.orientation = kf_orientation;
+				//cv::Mat(6, 6, CV_64FC1, curr_pose.covariance.elems).setTo(0);
+				//curr_pose_stamped.header.frame_id = "map";
+				//curr_pose_stamped.header.stamp = ros::Time::now();
+				//curr_pose_stamped.header.seq = ++init_pose_id;
+				//curr_pose_stamped.pose = curr_pose;
+				pub_current_pose.publish(curr_pose.pose);
+				geometry_msgs::PoseArray curr_particles;
+				curr_particles.header = curr_pose_stamped.header;
+				curr_particles.poses.push_back(curr_pose.pose);
+				pub_current_particles.publish(curr_particles);
+			}
+
+			ROS_INFO("Publishing goal: (%f, %f)\n", kf_pos_grid_x_us, kf_pos_grid_z_us);
+			goal.pose.position.x = kf_pos_grid_x_us;
+			goal.pose.position.y = kf_pos_grid_z_us;
+			goal.pose.orientation.x = 0;
+			goal.pose.orientation.y = 0;
+			goal.pose.orientation.z = 0;
+			goal.pose.orientation.w = 1;
+			goal.header.frame_id = "map";
+			goal.header.stamp = ros::Time::now();
+			goal.header.seq = ++goal_id;
+			pub_goal.publish(goal);
+		}
+		//	
+		//::ros::console::print();
+	}
 	nav_msgs::MapMetaData map_metadata;
 	map_metadata.width = w;
 	map_metadata.height = h;
@@ -269,38 +344,8 @@ void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 	map_metadata.origin.position.z = 0;
 	pub_grid_map.publish(grid_map_msg);
 	pub_grid_map_metadata.publish(map_metadata);
-	if (kf_id == 0) {
-		geometry_msgs::PoseWithCovariance init_pose;
-		init_pose.pose.position.x = kf_pos_grid_x_us;
-		init_pose.pose.position.y = kf_pos_grid_z_us;
-		init_pose.pose.position.z = 0;
-		//init_pose.pose.orientation = kf_orientation;
-		init_pose.pose.orientation.x = 0;
-		init_pose.pose.orientation.y = 0;
-		init_pose.pose.orientation.z = 0;
-		init_pose.pose.orientation.w = 1;
-		cv::Mat(6, 6, CV_64FC1, init_pose.covariance.elems).setTo(0);		
-		init_pose_stamped.header.frame_id = "map";
-		init_pose_stamped.header.stamp = ros::Time::now();
-		init_pose_stamped.header.seq = ++init_pose_id;
-		init_pose_stamped.pose = init_pose;		
-	}	
-	else if (kf_id % goal_gap == 0) {
-		geometry_msgs::PoseStamped goal;
-		goal.pose.position.x = kf_pos_grid_x_us;
-		goal.pose.position.y = kf_pos_grid_z_us;
-		goal.pose.orientation.x = 0;
-		goal.pose.orientation.y = 0;
-		goal.pose.orientation.z = 0;
-		goal.pose.orientation.w = 1;
-		goal.header.frame_id = "map";
-		goal.header.stamp = ros::Time::now();
-		goal.header.seq = ++goal_id;
-		pub_goal.publish(goal);
-	}
-	pub_initial_pose.publish(init_pose_stamped);
 	++kf_id;
-
+		
 	//goal.target_pose.header.stamp = ros::Time::now();
 	//goal.target_pose.pose.position.x = kf_pos_grid_x;
 	//goal.target_pose.pose.position.y = kf_pos_grid_z;
@@ -483,10 +528,10 @@ void updateGridMap(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 		Eigen::Vector4d kf_orientation_eig(kf_orientation.w, kf_orientation.x, kf_orientation.y, kf_orientation.z);
 		kf_orientation_eig.array() /= kf_orientation_eig.norm();
 		Eigen::Matrix3d keyframe_rotation = Eigen::Quaterniond(kf_orientation_eig).toRotationMatrix();
-		Eigen::Vector3d keyframe_translation(kf_location.x, kf_location.y, kf_location.z);
+		Eigen::Vector3d keyframe_translation(kf_location.x*scale_factor, kf_location.y*scale_factor, kf_location.z*scale_factor);
 		transform_mat.setIdentity();
 		transform_mat.topLeftCorner<3, 3>() = keyframe_rotation.transpose();
-		transform_mat.bottomLeftCorner<1, 3>() = (-keyframe_rotation.transpose() * keyframe_translation).transpose();
+		transform_mat.topRightCorner<3, 1>() = (-keyframe_rotation.transpose() * keyframe_translation);
 	}
 	unsigned int n_pts = pts_and_pose->poses.size() - 1;
 	//printf("Processing key frame %u and %u points\n",n_kf_received, n_pts);
@@ -583,14 +628,17 @@ void getGridMap() {
 			}
 			if (grid_map.at<float>(row, col) >= free_thresh) {
 				grid_map_thresh.at<uchar>(row, col) = 255;
+				grid_map_int.at<char>(row, col) = (1 - grid_map.at<float>(row, col)) * 100;
 			}
 			else if (grid_map.at<float>(row, col) < free_thresh && grid_map.at<float>(row, col) >= occupied_thresh) {
 				grid_map_thresh.at<uchar>(row, col) = 128;
+				grid_map_int.at<char>(row, col) = -1;
 			}
 			else {
 				grid_map_thresh.at<uchar>(row, col) = 0;
+				grid_map_int.at<char>(row, col) = (1 - grid_map.at<float>(row, col)) * 100;
 			}
-			grid_map_int.at<char>(row, col) = (1 - grid_map.at<float>(row, col)) * 100;
+			
 		}
 	}
 	if (add_contour) {
@@ -691,6 +739,9 @@ void parseParams(int argc, char **argv) {
 		filter_ground_points = atoi(argv[arg_id++]);
 	}
 	if (argc > arg_id){
+		enable_goal_publishing = atoi(argv[arg_id++]);
+	}
+	if (argc > arg_id){
 		show_camera_location = atoi(argv[arg_id++]);
 	}
 	if (argc > arg_id){
@@ -714,6 +765,7 @@ void printParams() {
 	printf("use_gaussian_counters: %d\n", use_gaussian_counters);
 	printf("add_contour: %d\n", add_contour);
 	printf("filter_ground_points: %d\n", filter_ground_points);
+	printf("enable_goal_publishing: %d\n", enable_goal_publishing);
 	printf("show_camera_location: %d\n", show_camera_location);
 	printf("gaussian_kernel_size: %d\n", gaussian_kernel_size);
 	printf("cam_radius: %d\n", cam_radius);

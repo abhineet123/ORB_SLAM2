@@ -1,0 +1,9 @@
+<!--
+  Used for visualising the turtlebot while building a map or navigating with the ros navistack.
+  
+  Use this version of view_navigation.launch whenever the navigation related topics lay inside
+  an application namespace (that is, navigation was launched by the app manager).
+ -->
+<launch>
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find turtlebot_rviz_launchers)/rviz/navigation_app.rviz"/>
+</launch>
