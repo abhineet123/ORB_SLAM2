@@ -26,7 +26,21 @@
 #include <Eigen/Dense>
 #include <tf/transform_broadcaster.h>
 
+#ifndef DISABLE_FLANN
+#include <flann/flann.hpp>
+typedef flann::Index<flann::L2<double> > FLANN;
+typedef std::unique_ptr<FLANN> FLANN_;
+typedef flann::Matrix<double> flannMatT;
+typedef flann::Matrix<int> flannResultT;
+typedef std::unique_ptr<flannMatT> flannMatT_;
+#endif
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 //typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
+
 
 // parameters
 float scale_factor = 3;
@@ -46,14 +60,20 @@ unsigned int use_local_counters = 0;
 unsigned int use_gaussian_counters = 0;
 bool add_contour = false;
 bool filter_ground_points = false;
-bool use_plane_normals = false;
 bool show_camera_location = true;
 unsigned int gaussian_kernel_size = 3;
-int cam_radius = 4;
+int cam_radius = 2;
 // no. of keyframes between successive goal messages that are published
 unsigned int goal_gap = 20;
 bool enable_goal_publishing = false;
 
+#ifndef DISABLE_FLANN
+double plane_normal_thresh_deg = 0;
+bool use_plane_normals = false;
+double plane_normal_thresh_cmp_rad=0.0;
+std::vector<double> pt_normals;
+FLANN_ flann_index;
+#endif
 
 float grid_max_x, grid_min_x,grid_max_z, grid_min_z;
 cv::Mat global_occupied_counter, global_visit_counter;
@@ -76,6 +96,7 @@ geometry_msgs::PoseWithCovarianceStamped init_pose_stamped, curr_pose_stamped;
 tf::StampedTransform odom_to_map_transform_stamped;
 geometry_msgs::PoseStamped goal;
 geometry_msgs::PoseWithCovariance init_pose, curr_pose;
+
 
 //#ifdef COMPILEDWITHC11
 //std::chrono::steady_clock::time_point start_time, end_time;
@@ -102,8 +123,8 @@ void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose);
 void loopClosingCallback(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts);
 void getMixMax(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose,
 	geometry_msgs::Point& min_pt, geometry_msgs::Point& max_pt);
-void processMapPt(const geometry_msgs::Point &curr_pt, cv::Mat &occupied,
-	cv::Mat &visited, cv::Mat &pt_mask, int kf_pos_grid_x, int kf_pos_grid_z);
+void processMapPt(const geometry_msgs::Point &curr_pt, cv::Mat &occupied, cv::Mat &visited, 
+	cv::Mat &pt_mask, int kf_pos_grid_x, int kf_pos_grid_z, unsigned int id);
 void processMapPts(const std::vector<geometry_msgs::Pose> &pts, unsigned int n_pts,
 	unsigned int start_id, int kf_pos_grid_x, int kf_pos_grid_z);
 void getGridMap();
@@ -128,7 +149,13 @@ int main(int argc, char **argv){
 	parseParams(argc, argv);
 	printParams();
 
-
+#ifndef DISABLE_FLANN
+	if (plane_normal_thresh_deg > 0 && plane_normal_thresh_deg <= 90) {
+		use_plane_normals = true;
+		plane_normal_thresh_cmp_rad = (90 - plane_normal_thresh_deg)*M_PI / 180.0;
+		flann_index.reset(new FLANN(flann::KDTreeIndexParams(6)));
+	}
+#endif
 	grid_max_x = cloud_max_x*scale_factor;
 	grid_min_x = cloud_min_x*scale_factor;
 	grid_max_z = cloud_max_z*scale_factor;
@@ -388,8 +415,8 @@ void getMixMax(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose,
 		if (curr_pt.z > max_pt.z) { max_pt.z = curr_pt.z; }
 	}
 }
-void processMapPt(const geometry_msgs::Point &curr_pt, cv::Mat &occupied, 
-	cv::Mat &visited, cv::Mat &pt_mask, int kf_pos_grid_x, int kf_pos_grid_z) {
+void processMapPt(const geometry_msgs::Point &curr_pt, cv::Mat &occupied, cv::Mat &visited, 
+	cv::Mat &pt_mask, int kf_pos_grid_x, int kf_pos_grid_z, unsigned int pt_id) {
 	float pt_pos_x = curr_pt.x*scale_factor;
 	float pt_pos_z = curr_pt.z*scale_factor;
 
@@ -402,13 +429,20 @@ void processMapPt(const geometry_msgs::Point &curr_pt, cv::Mat &occupied,
 	if (pt_pos_grid_z < 0 || pt_pos_grid_z >= h)
 		return;
 	bool is_ground_pt = false;
+	bool is_in_horizontal_plane = false;
 	if (filter_ground_points){
 		float pt_pos_y = curr_pt.y*scale_factor;
 		Eigen::Vector4d transformed_point_location = transform_mat * Eigen::Vector4d(pt_pos_x, pt_pos_y, pt_pos_z, 1);
 		double transformed_point_height = transformed_point_location[1] / transformed_point_location[3];
 		is_ground_pt = transformed_point_height < 0;
-	}	
-	if (is_ground_pt) {
+	}
+#ifndef DISABLE_FLANN
+	if (use_plane_normals) {
+		double normal_angle_cmp_rad = pt_normals[pt_id];
+		is_in_horizontal_plane = normal_angle_cmp_rad < plane_normal_thresh_cmp_rad;
+	}
+#endif
+	if (is_ground_pt || is_in_horizontal_plane) {
 		++visited.at<float>(pt_pos_grid_z, pt_pos_grid_x);
 	}
 	else {
@@ -458,13 +492,51 @@ void processMapPt(const geometry_msgs::Point &curr_pt, cv::Mat &occupied,
 void processMapPts(const std::vector<geometry_msgs::Pose> &pts, unsigned int n_pts,
 	unsigned int start_id, int kf_pos_grid_x, int kf_pos_grid_z) {
 	unsigned int end_id = start_id + n_pts;
+#ifndef DISABLE_FLANN
+	if (use_plane_normals) {
+		cv::Mat cv_dataset(n_pts, 3, CV_64FC1);
+		for (unsigned int pt_id = start_id; pt_id < end_id; ++pt_id){
+			cv_dataset.at<double>(pt_id - start_id, 0) = pts[pt_id].position.x;
+			cv_dataset.at<double>(pt_id - start_id, 1) = pts[pt_id].position.y;
+			cv_dataset.at<double>(pt_id - start_id, 2) = pts[pt_id].position.z;
+		}
+		//printf("building FLANN index...\n");		
+		flann_index->buildIndex(flannMatT((double *)(cv_dataset.data), n_pts, 3));
+		pt_normals.resize(n_pts);
+		for (unsigned int pt_id = start_id; pt_id < end_id; ++pt_id){
+			double pt[3], dists[3];
+			pt[0] = pts[pt_id].position.x;
+			pt[1] = pts[pt_id].position.y;
+			pt[2] = pts[pt_id].position.z;
+			int results[3];
+			flannMatT flann_query(pt, 1, 3);
+			flannMatT flann_dists(dists, 1, 3);
+			flannResultT flann_result(results, 3, 1);
+			flann_index->knnSearch(flann_query, flann_result, flann_dists, 3, flann::SearchParams());
+			Eigen::Matrix3d nearest_pts;
+			for (unsigned int i = 0; i < 3; ++i){
+				nearest_pts(0, i) = cv_dataset.at<double>(results[i], 0);
+				nearest_pts(1, i) = cv_dataset.at<double>(results[i], 1);
+				nearest_pts(2, i) = cv_dataset.at<double>(results[i], 2);
+			}
+			Eigen::Vector3d centroid = nearest_pts.rowwise().mean();
+			Eigen::Matrix3d centered_pts = nearest_pts.colwise() - centroid;
+			Eigen::JacobiSVD<Eigen::Matrix3d> svd(centered_pts, Eigen::ComputeThinU | Eigen::ComputeThinV);
+			int n_cols = svd.matrixU().cols();
+			// left singular vector corresponding to the smallest singular value
+			Eigen::Vector3d normal_direction = svd.matrixU().col(n_cols - 1);
+			// angle to y axis
+			pt_normals[pt_id-start_id] = acos(normal_direction[1]);
+		}
+	}
+#endif
 	if (use_local_counters) {
 		local_map_pt_mask.setTo(0);
 		local_occupied_counter.setTo(0);
 		local_visit_counter.setTo(0);
 		for (unsigned int pt_id = start_id; pt_id < end_id; ++pt_id){
 			processMapPt(pts[pt_id].position, local_occupied_counter, local_visit_counter,
-				local_map_pt_mask, kf_pos_grid_x, kf_pos_grid_z);
+				local_map_pt_mask, kf_pos_grid_x, kf_pos_grid_z, pt_id - start_id);
 		}
 
 		for (int row = 0; row < h; ++row){
@@ -491,7 +563,7 @@ void processMapPts(const std::vector<geometry_msgs::Pose> &pts, unsigned int n_p
 	else {
 		for (unsigned int pt_id = start_id; pt_id < end_id; ++pt_id){
 			processMapPt(pts[pt_id].position, global_occupied_counter, global_visit_counter,
-				local_map_pt_mask, kf_pos_grid_x, kf_pos_grid_z);
+				local_map_pt_mask, kf_pos_grid_x, kf_pos_grid_z, pt_id - start_id);
 		}
 	}
 }
@@ -638,7 +710,6 @@ void getGridMap() {
 				grid_map_thresh.at<uchar>(row, col) = 0;
 				grid_map_int.at<char>(row, col) = (1 - grid_map.at<float>(row, col)) * 100;
 			}
-			
 		}
 	}
 	if (add_contour) {
@@ -738,6 +809,11 @@ void parseParams(int argc, char **argv) {
 	if (argc > arg_id){
 		filter_ground_points = atoi(argv[arg_id++]);
 	}
+#ifndef DISABLE_FLANN
+	if (argc > arg_id){
+		plane_normal_thresh_deg = atof(argv[arg_id++]);
+	}
+#endif
 	if (argc > arg_id){
 		enable_goal_publishing = atoi(argv[arg_id++]);
 	}
@@ -765,6 +841,9 @@ void printParams() {
 	printf("use_gaussian_counters: %d\n", use_gaussian_counters);
 	printf("add_contour: %d\n", add_contour);
 	printf("filter_ground_points: %d\n", filter_ground_points);
+#ifndef DISABLE_FLANN
+	printf("plane_normal_thresh_deg: %f\n", plane_normal_thresh_deg);
+#endif
 	printf("enable_goal_publishing: %d\n", enable_goal_publishing);
 	printf("show_camera_location: %d\n", show_camera_location);
 	printf("gaussian_kernel_size: %d\n", gaussian_kernel_size);

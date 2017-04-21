@@ -11,6 +11,7 @@ MESSAGE("Build type: " ${ROS_BUILD_TYPE})
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall -Wfatal-errors -Wno-write-strings -Wno-unused-result -Wformat=0 -O3 -march=native ")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wfatal-errors -Wno-write-strings -Wno-unused-result -Wformat=0  -O3 -march=native")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/")
 
 # Check C++11 or C++0x support
 include(CheckCXXCompilerFlag)
@@ -42,6 +43,7 @@ find_package(Eigen3 3.1.0 REQUIRED)
 find_package(Pangolin REQUIRED)
 find_package(PCL 1.7 REQUIRED)
 
+
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
@@ -62,6 +64,23 @@ ${PROJECT_SOURCE_DIR}/../../../Thirdparty/g2o/lib/libg2o.so
 ${PROJECT_SOURCE_DIR}/../../../lib/libORB_SLAM2.so
 )
 
+rosbuild_add_executable(Monosub
+src/ros_mono_sub.cc
+)
+find_package(FLANN)
+if(FLANN_FOUND)
+include_directories(${FLANN_INCLUDE_DIRS})
+set(LIBS ${LIBS} ${FLANN_LIBS})
+else()
+message(STATUS "FLANN not found so disabling normal thresholding")
+target_compile_definitions(Monosub PUBLIC DISABLE_FLANN)
+endif()
+
+target_link_libraries(Monosub
+${LIBS}
+)
+
+
 # Node for monocular camera
 rosbuild_add_executable(Mono
 src/ros_mono.cc
@@ -78,15 +97,6 @@ src/ros_mono_pub.cc
 target_link_libraries(Monopub
 ${LIBS}
 )
-
-rosbuild_add_executable(Monosub
-src/ros_mono_sub.cc
-)
-
-target_link_libraries(Monosub
-${LIBS}
-)
-
 rosbuild_add_executable(Monosub2
 src/ros_mono_sub_2.cc
 )
