@@ -86,7 +86,7 @@ rosrun ORB_SLAM2 Monosub 10 1 29 -25 48 -12 0.55 0.50 1 5 1
 rosrun ORB_SLAM2 Monosub 10 1 29 -25 48 -12 0.55 0.50 1 5 1 1
 ---> with contour and without gaussian counters <!--- 
 rosrun ORB_SLAM2 Monosub 10 1 29 -25 48 -12 0.55 0.50 1 5 0 1
----> with Gaussian counters and ground point filtering and no contour: <!--- 
+---> with Gaussian counters and ground point filtering, no contour detection and normal thresholding of 75 degrees: <!--- 
 rosrun ORB_SLAM2 Monosub 10 1 29 -25 48 -12 0.55 0.50 1 5 1 0 1 75
 rosrun ORB_SLAM2 Monosub 10 1 29 -25 48 -12 0.55 0.50 1 5 1 0 1 1
 ---> without Gaussian counters and with ground point filtering and no contour: <!--- 
