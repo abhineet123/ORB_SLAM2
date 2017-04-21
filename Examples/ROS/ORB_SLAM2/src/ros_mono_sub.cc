@@ -153,6 +153,7 @@ int main(int argc, char **argv){
 	if (plane_normal_thresh_deg > 0 && plane_normal_thresh_deg <= 90) {
 		use_plane_normals = true;
 		plane_normal_thresh_cmp_rad = (90 - plane_normal_thresh_deg)*M_PI / 180.0;
+		printf("plane_normal_thresh_cmp_rad: %f rad\n", plane_normal_thresh_cmp_rad);
 		flann_index.reset(new FLANN(flann::KDTreeIndexParams(6)));
 	}
 #endif
@@ -508,25 +509,35 @@ void processMapPts(const std::vector<geometry_msgs::Pose> &pts, unsigned int n_p
 			pt[0] = pts[pt_id].position.x;
 			pt[1] = pts[pt_id].position.y;
 			pt[2] = pts[pt_id].position.z;
+
 			int results[3];
 			flannMatT flann_query(pt, 1, 3);
 			flannMatT flann_dists(dists, 1, 3);
 			flannResultT flann_result(results, 3, 1);
 			flann_index->knnSearch(flann_query, flann_result, flann_dists, 3, flann::SearchParams());
 			Eigen::Matrix3d nearest_pts;
+			printf("Point %d: %f, %f, %f\n", pt_id - start_id, pt[0], pt[1], pt[2]);
 			for (unsigned int i = 0; i < 3; ++i){
 				nearest_pts(0, i) = cv_dataset.at<double>(results[i], 0);
 				nearest_pts(1, i) = cv_dataset.at<double>(results[i], 1);
 				nearest_pts(2, i) = cv_dataset.at<double>(results[i], 2);
+				printf("Nearest Point %d: %f, %f, %f\n", results[i], nearest_pts(0, i), nearest_pts(1, i), nearest_pts(2, i));
 			}
 			Eigen::Vector3d centroid = nearest_pts.rowwise().mean();
+			printf("centroid %f, %f, %f\n", centroid[0], centroid[1], centroid[2]);
 			Eigen::Matrix3d centered_pts = nearest_pts.colwise() - centroid;
 			Eigen::JacobiSVD<Eigen::Matrix3d> svd(centered_pts, Eigen::ComputeThinU | Eigen::ComputeThinV);
 			int n_cols = svd.matrixU().cols();
 			// left singular vector corresponding to the smallest singular value
 			Eigen::Vector3d normal_direction = svd.matrixU().col(n_cols - 1);
+			printf("normal_direction %f, %f, %f\n", normal_direction[0], normal_direction[1], normal_direction[2]);
 			// angle to y axis
 			pt_normals[pt_id-start_id] = acos(normal_direction[1]);
+			if (pt_normals[pt_id - start_id ]> (M_PI / 2.0)) {
+				pt_normals[pt_id - start_id] = pt_normals[pt_id - start_id] - (M_PI / 2.0);
+			}
+			printf("normal angle: %f rad or %f deg\n", pt_normals[pt_id - start_id], pt_normals[pt_id - start_id]*180.0/M_PI);
+			printf("\n\n");
 		}
 	}
 #endif
