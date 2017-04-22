@@ -96,9 +96,9 @@ rosrun ORB_SLAM2 Monosub 10 1 29 -25 48 -12 0.55 0.50 1 5 0 0 1
 rosrun ORB_SLAM2 Monosub 30 5 2 -2 2 -2 0.55 0.50 1 5
 rosrun ORB_SLAM2 Monosub 30 2 6 -6 6 -6 0.55 0.50 1 5
 ---> with camera location <!--- 
-rosrun ORB_SLAM2 Monosub 20 1 10 -15 20 -10 0.55 0.50 1 5 1 0 1
-rosrun ORB_SLAM2 Monosub 20 1 10 -15 20 -10 0.55 0.50 1 5 1 1 1
-rosrun ORB_SLAM2 Monosub 20 1 10 -15 20 -10 0.55 0.50 1 5 0 1 1 
+rosrun ORB_SLAM2 Monosub 20 1 10 -15 20 -10 0.55 0.50 1 5 1 1 1 75
+rosrun ORB_SLAM2 Monosub 20 1 10 -15 20 -10 0.55 0.50 1 5 1 0 1 75
+rosrun ORB_SLAM2 Monosub 20 1 10 -15 20 -10 0.55 0.50 1 5 0 0 1 75 
 rosrun ORB_SLAM2 Monosub 10 2 10 -15 20 -10 0.55 0.50 1 5 0 1 0
 ---> running rosbag of recording: <!--- 
 rosbag play "/media/abhineet/Win 8/bags/2017-04-03-20-35-36.bag" -r 0.5

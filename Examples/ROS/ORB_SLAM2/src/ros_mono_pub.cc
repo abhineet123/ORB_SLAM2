@@ -185,6 +185,7 @@ void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
 		kf_pt_array.poses.push_back(geometry_msgs::Pose());
 		sort(key_frames.begin(), key_frames.end(), ORB_SLAM2::KeyFrame::lId);
 		unsigned int n_kf = 0;
+		unsigned int n_pts_id = 0;
 		for (auto key_frame : key_frames) {
 			// pKF->SetPose(pKF->GetPose()*Two);
 
@@ -205,7 +206,7 @@ void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
 			kf_pose.orientation.w = q[3];
 			kf_pt_array.poses.push_back(kf_pose);
 
-			unsigned int n_pts_id = kf_pt_array.poses.size();
+			n_pts_id = kf_pt_array.poses.size();
 			//! placeholder for number of points
 			kf_pt_array.poses.push_back(geometry_msgs::Pose());
 			std::set<ORB_SLAM2::MapPoint*> map_points = key_frame->GetMapPoints();
@@ -229,14 +230,14 @@ void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
 				kf_pt_array.poses.push_back(curr_pt);
 				++n_pts;
 			}
-			kf_pt_array.poses[n_pts_id].position.x = 
-				kf_pt_array.poses[n_pts_id].position.y = 
-				kf_pt_array.poses[n_pts_id].position.z = n_pts;
+			kf_pt_array.poses[n_pts_id].position.x = (double) n_pts;
+			kf_pt_array.poses[n_pts_id].position.y = (double) n_pts;
+			kf_pt_array.poses[n_pts_id].position.z = (double) n_pts;
 			++n_kf;
 		}
-		kf_pt_array.poses[0].position.x = 
-			kf_pt_array.poses[0].position.y = 
-			kf_pt_array.poses[0].position.z = n_kf;
+		kf_pt_array.poses[0].position.x = (double) n_kf;
+		kf_pt_array.poses[0].position.y = (double) n_kf;
+		kf_pt_array.poses[0].position.z = (double) n_kf;
 		kf_pt_array.header.frame_id = "1";
 		kf_pt_array.header.seq = frame_id + 1;
 		printf("Publishing data for %u keyfranmes\n", n_kf);
