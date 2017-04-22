@@ -53,13 +53,10 @@ float free_thresh = 0.55;
 float occupied_thresh = 0.50;
 float thresh_diff = 0.01;
 int visit_thresh = 0;
-float upper_left_x = -1.5;
-float upper_left_y = -2.5;
-const int resolution = 10;
 unsigned int use_local_counters = 0;
 unsigned int use_gaussian_counters = 0;
-bool add_contour = false;
-bool filter_ground_points = false;
+bool use_boundary_detection = false;
+bool use_height_thresholding = false;
 bool show_camera_location = true;
 unsigned int gaussian_kernel_size = 3;
 int cam_radius = 2;
@@ -68,7 +65,7 @@ unsigned int goal_gap = 20;
 bool enable_goal_publishing = false;
 
 #ifndef DISABLE_FLANN
-double plane_normal_thresh_deg = 0;
+double normal_thresh_deg = 0;
 bool use_plane_normals = false;
 double plane_normal_thresh_cmp_rad=0.0;
 std::vector<double> pt_normals;
@@ -96,6 +93,8 @@ geometry_msgs::PoseWithCovarianceStamped init_pose_stamped, curr_pose_stamped;
 tf::StampedTransform odom_to_map_transform_stamped;
 geometry_msgs::PoseStamped goal;
 geometry_msgs::PoseWithCovariance init_pose, curr_pose;
+
+std::string map_name_template;
 
 
 //#ifdef COMPILEDWITHC11
@@ -149,10 +148,13 @@ int main(int argc, char **argv){
 	parseParams(argc, argv);
 	printParams();
 
+	map_name_template = cv::format("grid_map_f%.2f_o%.2f_l%d_v%d_g%d_b%d_h%d_n%d", free_thresh, occupied_thresh, use_local_counters,
+		visit_thresh, use_gaussian_counters, use_boundary_detection, use_height_thresholding, int(normal_thresh_deg));
+
 #ifndef DISABLE_FLANN
-	if (plane_normal_thresh_deg > 0 && plane_normal_thresh_deg <= 90) {
+	if (normal_thresh_deg > 0 && normal_thresh_deg <= 90) {
 		use_plane_normals = true;
-		plane_normal_thresh_cmp_rad = (90 - plane_normal_thresh_deg)*M_PI / 180.0;
+		plane_normal_thresh_cmp_rad = (90 - normal_thresh_deg)*M_PI / 180.0;
 		printf("plane_normal_thresh_cmp_rad: %f rad\n", plane_normal_thresh_cmp_rad);
 		flann_index.reset(new FLANN(flann::KDTreeIndexParams(6)));
 	}
@@ -251,14 +253,14 @@ void kfCallback(const geometry_msgs::PoseStamped::ConstPtr& camera_pose){
 void saveMap(unsigned int id) {
 	printf("saving maps with id: %u\n", id);
 	if (id > 0) {
-		cv::imwrite("grid_map_" + to_string(id) + ".jpg", grid_map);
-		cv::imwrite("grid_map_thresh_" + to_string(id) + ".jpg", grid_map_thresh);
-		cv::imwrite("grid_map_thresh_resized" + to_string(id) + ".jpg", grid_map_thresh_resized);
+		cv::imwrite(map_name_template + "_" + to_string(id) + ".jpg", grid_map);
+		cv::imwrite(map_name_template + "_thresh_" + to_string(id) + ".jpg", grid_map_thresh);
+		cv::imwrite(map_name_template + "_thresh_resized" + to_string(id) + ".jpg", grid_map_thresh_resized);
 	}
 	else {
-		cv::imwrite("grid_map.jpg", grid_map);
-		cv::imwrite("grid_map_thresh.jpg", grid_map_thresh);
-		cv::imwrite("grid_map_thresh_resized.jpg", grid_map_thresh_resized);
+		cv::imwrite(map_name_template + ".jpg", grid_map);
+		cv::imwrite(map_name_template + ".jpg", grid_map_thresh);
+		cv::imwrite(map_name_template + ".jpg", grid_map_thresh_resized);
 	}
 
 }
@@ -431,7 +433,7 @@ void processMapPt(const geometry_msgs::Point &curr_pt, cv::Mat &occupied, cv::Ma
 		return;
 	bool is_ground_pt = false;
 	bool is_in_horizontal_plane = false;
-	if (filter_ground_points){
+	if (use_height_thresholding){
 		float pt_pos_y = curr_pt.y*scale_factor;
 		Eigen::Vector4d transformed_point_location = transform_mat * Eigen::Vector4d(pt_pos_x, pt_pos_y, pt_pos_z, 1);
 		double transformed_point_height = transformed_point_location[1] / transformed_point_location[3];
@@ -549,7 +551,6 @@ void processMapPts(const std::vector<geometry_msgs::Pose> &pts, unsigned int n_p
 			processMapPt(pts[pt_id].position, local_occupied_counter, local_visit_counter,
 				local_map_pt_mask, kf_pos_grid_x, kf_pos_grid_z, pt_id - start_id);
 		}
-
 		for (int row = 0; row < h; ++row){
 			for (int col = 0; col < w; ++col){
 				if (local_map_pt_mask.at<uchar>(row, col) == 0) {
@@ -607,7 +608,7 @@ void updateGridMap(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose){
 
 	++n_kf_received;
 
-	if (filter_ground_points){
+	if (use_height_thresholding){
 		Eigen::Vector4d kf_orientation_eig(kf_orientation.w, kf_orientation.x, kf_orientation.y, kf_orientation.z);
 		kf_orientation_eig.array() /= kf_orientation_eig.norm();
 		Eigen::Matrix3d keyframe_rotation = Eigen::Quaterniond(kf_orientation_eig).toRotationMatrix();
@@ -672,7 +673,7 @@ void resetGridMap(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts){
 				kf_id, n_pts, all_kf_and_pts->poses.size(), id + n_pts);
 			return;
 		}
-		if (filter_ground_points){
+		if (use_height_thresholding){
 			Eigen::Vector4d kf_orientation_eig(kf_orientation.w, kf_orientation.x, kf_orientation.y, kf_orientation.z);
 			kf_orientation_eig.array() /= kf_orientation_eig.norm();
 			Eigen::Matrix3d keyframe_rotation = Eigen::Quaterniond(kf_orientation_eig).toRotationMatrix();
@@ -723,7 +724,7 @@ void getGridMap() {
 			}
 		}
 	}
-	if (add_contour) {
+	if (use_boundary_detection) {
 		int thresh = 100;
 		cv::Mat canny_output;
 		std::vector<std::vector<cv::Point> > contours;
@@ -815,14 +816,14 @@ void parseParams(int argc, char **argv) {
 		use_gaussian_counters = atoi(argv[arg_id++]);
 	}
 	if (argc > arg_id){
-		add_contour = atoi(argv[arg_id++]);
+		use_boundary_detection = atoi(argv[arg_id++]);
 	}
 	if (argc > arg_id){
-		filter_ground_points = atoi(argv[arg_id++]);
+		use_height_thresholding = atoi(argv[arg_id++]);
 	}
 #ifndef DISABLE_FLANN
 	if (argc > arg_id){
-		plane_normal_thresh_deg = atof(argv[arg_id++]);
+		normal_thresh_deg = atof(argv[arg_id++]);
 	}
 #endif
 	if (argc > arg_id){
@@ -850,10 +851,10 @@ void printParams() {
 	printf("use_local_counters: %d\n", use_local_counters);
 	printf("visit_thresh: %d\n", visit_thresh);
 	printf("use_gaussian_counters: %d\n", use_gaussian_counters);
-	printf("add_contour: %d\n", add_contour);
-	printf("filter_ground_points: %d\n", filter_ground_points);
+	printf("use_boundary_detection: %d\n", use_boundary_detection);
+	printf("use_height_thresholding: %d\n", use_height_thresholding);
 #ifndef DISABLE_FLANN
-	printf("plane_normal_thresh_deg: %f\n", plane_normal_thresh_deg);
+	printf("normal_thresh_deg: %f\n", normal_thresh_deg);
 #endif
 	printf("enable_goal_publishing: %d\n", enable_goal_publishing);
 	printf("show_camera_location: %d\n", show_camera_location);

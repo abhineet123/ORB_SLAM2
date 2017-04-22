@@ -72,7 +72,7 @@ rosrun ORB_SLAM2 Monopub Vocabulary/ORBvoc.txt Examples/Monocular/mono.yaml -1
 ---> start publisher with custom topic: <!--- 
 rosrun ORB_SLAM2 Monopub Vocabulary/ORBvoc.txt Examples/Monocular/demo_cam.yaml -1 /usb_cam/image_raw
 ---> 
-rosrun ORB_SLAM2 Monosub <scale_factor> <resize_factor> <cloud_max_x> <cloud_min_x> <cloud_max_z> <cloud_min_z> <free_thresh> <occupied_thresh> <use_local_counters> <visit_thresh> <use_gaussian_counters> <add_contour> <filter_ground_points> <plane_normal_thresh_deg> <enable_goal_publishing> <show_camera_location>
+rosrun ORB_SLAM2 Monosub <scale_factor> <resize_factor> <cloud_max_x> <cloud_min_x> <cloud_max_z> <cloud_min_z> <free_thresh> <occupied_thresh> <use_local_counters> <visit_thresh> <use_gaussian_counters> <use_boundary_detection> <use_height_thresholding> <normal_thresh_deg> <enable_goal_publishing> <show_camera_location>
 
 start subscriber on kitti 00: <!--- 
 rosrun ORB_SLAM2 Monosub 5 3 29 -25 48 -12 0.55 0.50 1 5
