@@ -113,10 +113,13 @@ roslaunch amcl_demo.launch
 roslaunch view_navigation.launch
 rosrun robot_pose_publisher robot_pose_publisher
 ---> record a rosbag of orbslam and grid mapping: <!--- 
-rosbag record pts_and_pose all_kf_and_pts map map_metadata move_base_simple/goal initialpose --output-name=~/rb_kitti00_gauss_height.bag
+rosbag record pts_and_pose all_kf_and_pts map map_metadata move_base_simple/goal initialpose --output-name=rb_kitti00_gauss_height.bag
 ---> play this rosbag  <!--- 
 rosbag play ~/rb_kitti00_gauss_height.bag
 rosbag play ~/rb_kitti00_pub.bag
 rosbag play ~/rb_cam_csc3_pub.bag
+---> record and play the subscriber rosbag  <!--- 
+rosbag record map map_metadata --output-name=rb_kitti00_sub.bag
+rosbag play ~/rb_kitti00_sub_f0.55_o0.50_l1_v5_g1_b1_h1_n45_c350..bag
 ---> 
 

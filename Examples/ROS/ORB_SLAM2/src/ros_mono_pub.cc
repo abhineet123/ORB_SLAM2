@@ -229,14 +229,14 @@ void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
 				kf_pt_array.poses.push_back(curr_pt);
 				++n_pts;
 			}
-			geometry_msgs::Pose n_pts_msg;
-			n_pts_msg.position.x = n_pts_msg.position.y = n_pts_msg.position.z = n_pts;
-			kf_pt_array.poses[n_pts_id] = n_pts_msg;
+			kf_pt_array.poses[n_pts_id].position.x = 
+				kf_pt_array.poses[n_pts_id].position.y = 
+				kf_pt_array.poses[n_pts_id].position.z = n_pts;
 			++n_kf;
 		}
-		geometry_msgs::Pose n_kf_msg;
-		n_kf_msg.position.x = n_kf_msg.position.y = n_kf_msg.position.z = n_kf;
-		kf_pt_array.poses[0] = n_kf_msg;
+		kf_pt_array.poses[0].position.x = 
+			kf_pt_array.poses[0].position.y = 
+			kf_pt_array.poses[0].position.z = n_kf;
 		kf_pt_array.header.frame_id = "1";
 		kf_pt_array.header.seq = frame_id + 1;
 		printf("Publishing data for %u keyfranmes\n", n_kf);

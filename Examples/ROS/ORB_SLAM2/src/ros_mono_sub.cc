@@ -631,6 +631,9 @@ void resetGridMap(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts){
 	if ((unsigned int) (all_kf_and_pts->poses[0].position.y) != n_kf ||
 		(unsigned int) (all_kf_and_pts->poses[0].position.z) != n_kf) {
 		printf("resetGridMap :: Unexpected formatting in the keyframe count element\n");
+		printf("all_kf_and_pts->poses[0].position.x: %u", (unsigned int)(all_kf_and_pts->poses[0].position.x));
+		printf("all_kf_and_pts->poses[0].position.y: %u", (unsigned int)(all_kf_and_pts->poses[0].position.y));
+		printf("all_kf_and_pts->poses[0].position.z: %u", (unsigned int)(all_kf_and_pts->poses[0].position.z));
 		return;
 	}
 	printf("Resetting grid map with %d key frames\n", n_kf);
@@ -643,8 +646,8 @@ void resetGridMap(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts){
 	for (unsigned int kf_id = 0; kf_id < n_kf; ++kf_id){
 		kf_location = all_kf_and_pts->poses[++id].position;
 		kf_orientation = all_kf_and_pts->poses[id].orientation;
-
-		unsigned int n_pts = all_kf_and_pts->poses[++id].position.x;
+		++id;
+		unsigned int n_pts = all_kf_and_pts->poses[id].position.x;
 		if ((unsigned int)(all_kf_and_pts->poses[id].position.y) != n_pts ||
 			(unsigned int)(all_kf_and_pts->poses[id].position.z) != n_pts) {
 			printf("resetGridMap :: Unexpected formatting in the point count element for keyframe %d\n", kf_id);
