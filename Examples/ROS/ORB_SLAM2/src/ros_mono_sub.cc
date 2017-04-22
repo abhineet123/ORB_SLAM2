@@ -246,9 +246,9 @@ void kfCallback(const geometry_msgs::PoseStamped::ConstPtr& camera_pose){
 		camera_pose->header.seq);
 }
 void saveMap(unsigned int id) {
-	std::string map_name_template = cv::format("grid_map_f%.2f_o%.2f_l%d_v%d_g%d_b%d_h%d_n%d", free_thresh, occupied_thresh, use_local_counters,
-		visit_thresh, use_gaussian_counters, use_boundary_detection, use_height_thresholding, int(normal_thresh_deg));
-	printf("saving maps with id: %u\n", id);
+	std::string map_name_template = cv::format("grid_map_f%.2f_o%.2f_l%d_v%d_g%d_b%d_h%d_n%d_c%d", free_thresh, occupied_thresh, use_local_counters,
+		visit_thresh, use_gaussian_counters, use_boundary_detection, use_height_thresholding, int(normal_thresh_deg), canny_thresh);
+	printf("saving maps with id: %u and name template: %s\n", id, map_name_template.c_str());
 	if (id > 0) {
 		cv::imwrite(map_name_template + "_" + to_string(id) + ".jpg", grid_map);
 		cv::imwrite(map_name_template + "_thresh_" + to_string(id) + ".jpg", grid_map_thresh);
