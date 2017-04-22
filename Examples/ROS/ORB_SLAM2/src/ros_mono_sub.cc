@@ -67,7 +67,7 @@ bool enable_goal_publishing = false;
 #ifndef DISABLE_FLANN
 double normal_thresh_deg = 0;
 bool use_plane_normals = false;
-double plane_normal_thresh_cmp_rad=0.0;
+double normal_thresh_cmp_rad=0.0;
 std::vector<double> pt_normals;
 FLANN_ flann_index;
 #endif
@@ -93,9 +93,6 @@ geometry_msgs::PoseWithCovarianceStamped init_pose_stamped, curr_pose_stamped;
 tf::StampedTransform odom_to_map_transform_stamped;
 geometry_msgs::PoseStamped goal;
 geometry_msgs::PoseWithCovariance init_pose, curr_pose;
-
-std::string map_name_template;
-
 
 //#ifdef COMPILEDWITHC11
 //std::chrono::steady_clock::time_point start_time, end_time;
@@ -148,14 +145,11 @@ int main(int argc, char **argv){
 	parseParams(argc, argv);
 	printParams();
 
-	map_name_template = cv::format("grid_map_f%.2f_o%.2f_l%d_v%d_g%d_b%d_h%d_n%d", free_thresh, occupied_thresh, use_local_counters,
-		visit_thresh, use_gaussian_counters, use_boundary_detection, use_height_thresholding, int(normal_thresh_deg));
-
 #ifndef DISABLE_FLANN
 	if (normal_thresh_deg > 0 && normal_thresh_deg <= 90) {
 		use_plane_normals = true;
-		plane_normal_thresh_cmp_rad = (90 - normal_thresh_deg)*M_PI / 180.0;
-		printf("plane_normal_thresh_cmp_rad: %f rad\n", plane_normal_thresh_cmp_rad);
+		normal_thresh_cmp_rad = (90 - normal_thresh_deg)*M_PI / 180.0;
+		printf("normal_thresh_cmp_rad: %f rad\n", normal_thresh_cmp_rad);
 		flann_index.reset(new FLANN(flann::KDTreeIndexParams(6)));
 	}
 #endif
@@ -251,6 +245,8 @@ void kfCallback(const geometry_msgs::PoseStamped::ConstPtr& camera_pose){
 		camera_pose->header.seq);
 }
 void saveMap(unsigned int id) {
+	std::string map_name_template = cv::format("grid_map_f%.2f_o%.2f_l%d_v%d_g%d_b%d_h%d_n%d", free_thresh, occupied_thresh, use_local_counters,
+		visit_thresh, use_gaussian_counters, use_boundary_detection, use_height_thresholding, int(normal_thresh_deg));
 	printf("saving maps with id: %u\n", id);
 	if (id > 0) {
 		cv::imwrite(map_name_template + "_" + to_string(id) + ".jpg", grid_map);
@@ -442,7 +438,7 @@ void processMapPt(const geometry_msgs::Point &curr_pt, cv::Mat &occupied, cv::Ma
 #ifndef DISABLE_FLANN
 	if (use_plane_normals) {
 		double normal_angle_cmp_rad = pt_normals[pt_id];
-		is_in_horizontal_plane = normal_angle_cmp_rad < plane_normal_thresh_cmp_rad;
+		is_in_horizontal_plane = normal_angle_cmp_rad < normal_thresh_cmp_rad;
 	}
 #endif
 	if (is_ground_pt || is_in_horizontal_plane) {
@@ -725,14 +721,22 @@ void getGridMap() {
 		}
 	}
 	if (use_boundary_detection) {
-		int thresh = 100;
+		int canny_thresh = 100;
 		cv::Mat canny_output;
 		std::vector<std::vector<cv::Point> > contours;
 		std::vector<cv::Vec4i> hierarchy;
-		cv::Canny(grid_map_thresh, canny_output, thresh, thresh * 2, 3);
+		cv::Canny(grid_map_thresh, canny_output, canny_thresh, canny_thresh * 2, 3);
 		cv::imshow("canny_output", canny_output);
-		cv::findContours(canny_output, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
-		drawContours(grid_map_thresh, contours, -1, CV_RGB(0, 0, 0), 1, CV_AA, hierarchy, 0, cv::Point());
+		for (int row = 0; row < h; ++row){
+			for (int col = 0; col < w; ++col){
+				if (canny_output.at<uchar>(row, col)>0) {
+					grid_map_thresh.at<uchar>(row, col) = 0;
+					grid_map_int.at<char>(row, col) = 100;
+				}
+			}
+		}
+		//cv::findContours(canny_output, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cv::Point(0, 0));
+		//drawContours(grid_map_thresh, contours, -1, CV_RGB(0, 0, 0), 1, CV_AA);
 	}
 	cv::resize(grid_map_thresh, grid_map_thresh_resized, grid_map_thresh_resized.size());
 }
@@ -743,12 +747,14 @@ void showGridMap(unsigned int id) {
 		cv::circle(grid_map_rgb, cv::Point(kf_pos_grid_x*resize_factor, kf_pos_grid_z*resize_factor),
 			cam_radius, CV_RGB(255, 0, 0));
 		cv::imshow("grid_map_thresh_resized", grid_map_rgb);
-	} else {
+	}
+	else {
 		cv::imshow("grid_map_thresh_resized", grid_map_thresh_resized);
-	}	
+	}
 	//cv::imshow("grid_map", grid_map);
 	int key = cv::waitKey(1);
 	int key_mod = key % 256;
+	bool normal_thresh_updated = false;
 	if (key == 27 || key_mod == 27) {
 		cv::destroyAllWindows();
 		ros::shutdown();
@@ -775,8 +781,55 @@ void showGridMap(unsigned int id) {
 		if (occupied_thresh >= free_thresh){ occupied_thresh = free_thresh - thresh_diff; }
 		printf("Setting occupied_thresh to: %f\n", occupied_thresh);
 	}
+	else if (key == 'b' || key_mod == 'b' || key == 'B' || key_mod == 'B') {
+		use_boundary_detection = !use_boundary_detection;
+		if (use_boundary_detection){
+			printf("Enabling boundary detection\n");
+		}
+		else {
+			cv::destroyWindow("canny_output");
+			printf("Disabling boundary detection\n");
+		}
+	}
+	else if (key == 'h' || key_mod == 'h' || key == 'H' || key_mod == 'H') {
+		use_height_thresholding = !use_height_thresholding;
+		if (use_height_thresholding){
+			printf("Enabling height thresholding\n");
+		}
+		else {
+			printf("Disabling height thresholding\n");
+		}
+	}
+	else if (key == 'v' || key_mod == 'v') {
+		--visit_thresh;
+		printf("Setting normal threshold to: %d\n", visit_thresh);
+	}
+	else if (key == 'V' || key_mod == 'V') {
+		++visit_thresh;
+		printf("Setting visit threshold to: %d\n", visit_thresh);
+	}
+	else if (key == 'n' || key_mod == 'n') {
+		--normal_thresh_deg;
+		printf("Setting normal threshold to: %f degrees\n", normal_thresh_deg);
+		normal_thresh_updated = true;
+	}
+	else if (key == 'F' || key_mod == 'F') {
+		++normal_thresh_deg;
+		printf("Setting normal threshold to: %f degrees\n", normal_thresh_deg);
+		normal_thresh_updated = true;
+	}
 	else if (key == 's' || key_mod == 's' || key == 'S' || key_mod == 'S') {
 		saveMap(id);
+	}
+	if (normal_thresh_updated){
+		if (normal_thresh_deg > 0 && normal_thresh_deg <= 90) {
+			use_plane_normals = true;
+			normal_thresh_cmp_rad = (90 - normal_thresh_deg)*M_PI / 180.0;
+			printf("normal_thresh_cmp_rad: %f rad\n", normal_thresh_cmp_rad);
+		}
+		else {
+			use_plane_normals = false;
+		}
 	}
 }
 
