@@ -68,8 +68,8 @@ bool enable_goal_publishing = false;
 #ifndef DISABLE_FLANN
 double normal_thresh_deg = 0;
 bool use_plane_normals = false;
-double normal_thresh_cmp_rad=0.0;
-std::vector<double> pt_normals;
+double normal_thresh_y_rad=0.0;
+std::vector<double> normal_angle_y;
 FLANN_ flann_index;
 #endif
 
@@ -149,8 +149,9 @@ int main(int argc, char **argv){
 #ifndef DISABLE_FLANN
 	if (normal_thresh_deg > 0 && normal_thresh_deg <= 90) {
 		use_plane_normals = true;
-		normal_thresh_cmp_rad = (90 - normal_thresh_deg)*M_PI / 180.0;
-		printf("normal_thresh_cmp_rad: %f rad\n", normal_thresh_cmp_rad);
+		// threshold for angle with y axis = 90 - angle with xz plane
+		normal_thresh_y_rad = (90 - normal_thresh_deg)*M_PI / 180.0;
+		printf("normal_thresh_y_rad: %f rad\n", normal_thresh_y_rad);
 		flann_index.reset(new FLANN(flann::KDTreeIndexParams(6)));
 	}
 #endif
@@ -438,8 +439,8 @@ void processMapPt(const geometry_msgs::Point &curr_pt, cv::Mat &occupied, cv::Ma
 	}
 #ifndef DISABLE_FLANN
 	if (use_plane_normals) {
-		double normal_angle_cmp_rad = pt_normals[pt_id];
-		is_in_horizontal_plane = normal_angle_cmp_rad < normal_thresh_cmp_rad;
+		double normal_angle_y_rad = normal_angle_y[pt_id];
+		is_in_horizontal_plane = normal_angle_y_rad < normal_thresh_y_rad;
 	}
 #endif
 	if (is_ground_pt || is_in_horizontal_plane) {
@@ -502,7 +503,7 @@ void processMapPts(const std::vector<geometry_msgs::Pose> &pts, unsigned int n_p
 		}
 		//printf("building FLANN index...\n");		
 		flann_index->buildIndex(flannMatT((double *)(cv_dataset.data), n_pts, 3));
-		pt_normals.resize(n_pts);
+		normal_angle_y.resize(n_pts);
 		for (unsigned int pt_id = start_id; pt_id < end_id; ++pt_id){
 			double pt[3], dists[3];
 			pt[0] = pts[pt_id].position.x;
@@ -531,11 +532,11 @@ void processMapPts(const std::vector<geometry_msgs::Pose> &pts, unsigned int n_p
 			Eigen::Vector3d normal_direction = svd.matrixU().col(n_cols - 1);
 			//printf("normal_direction %f, %f, %f\n", normal_direction[0], normal_direction[1], normal_direction[2]);
 			// angle to y axis
-			pt_normals[pt_id-start_id] = acos(normal_direction[1]);
-			if (pt_normals[pt_id - start_id ]> (M_PI / 2.0)) {
-				pt_normals[pt_id - start_id] = M_PI - pt_normals[pt_id - start_id];
+			normal_angle_y[pt_id-start_id] = acos(normal_direction[1]);
+			if (normal_angle_y[pt_id - start_id ]> (M_PI / 2.0)) {
+				normal_angle_y[pt_id - start_id] = M_PI - normal_angle_y[pt_id - start_id];
 			}
-			//printf("normal angle: %f rad or %f deg\n", pt_normals[pt_id - start_id], pt_normals[pt_id - start_id]*180.0/M_PI);
+			//printf("normal angle: %f rad or %f deg\n", normal_angle_y[pt_id - start_id], normal_angle_y[pt_id - start_id]*180.0/M_PI);
 			//printf("\n\n");
 		}
 	}
@@ -836,8 +837,8 @@ void showGridMap(unsigned int id) {
 	if (normal_thresh_updated){
 		if (normal_thresh_deg > 0 && normal_thresh_deg <= 90) {
 			use_plane_normals = true;
-			normal_thresh_cmp_rad = (90 - normal_thresh_deg)*M_PI / 180.0;
-			printf("normal_thresh_cmp_rad: %f rad\n", normal_thresh_cmp_rad);
+			normal_thresh_y_rad = (90 - normal_thresh_deg)*M_PI / 180.0;
+			printf("normal_thresh_y_rad: %f rad\n", normal_thresh_y_rad);
 		}
 		else {
 			use_plane_normals = false;
