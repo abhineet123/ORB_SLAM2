@@ -534,7 +534,7 @@ void processMapPts(const std::vector<geometry_msgs::Pose> &pts, unsigned int n_p
 			// angle to y axis
 			pt_normals[pt_id-start_id] = acos(normal_direction[1]);
 			if (pt_normals[pt_id - start_id ]> (M_PI / 2.0)) {
-				pt_normals[pt_id - start_id] = pt_normals[pt_id - start_id] - (M_PI / 2.0);
+				pt_normals[pt_id - start_id] = M_PI - pt_normals[pt_id - start_id];
 			}
 			//printf("normal angle: %f rad or %f deg\n", pt_normals[pt_id - start_id], pt_normals[pt_id - start_id]*180.0/M_PI);
 			//printf("\n\n");
