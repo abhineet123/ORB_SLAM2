@@ -57,6 +57,7 @@ unsigned int use_local_counters = 0;
 unsigned int use_gaussian_counters = 0;
 bool use_boundary_detection = false;
 bool use_height_thresholding = false;
+int canny_thresh = 100;
 bool show_camera_location = true;
 unsigned int gaussian_kernel_size = 3;
 int cam_radius = 2;
@@ -721,7 +722,6 @@ void getGridMap() {
 		}
 	}
 	if (use_boundary_detection) {
-		int canny_thresh = 100;
 		cv::Mat canny_output;
 		std::vector<std::vector<cv::Point> > contours;
 		std::vector<cv::Vec4i> hierarchy;
@@ -808,6 +808,14 @@ void showGridMap(unsigned int id) {
 		++visit_thresh;
 		printf("Setting visit threshold to: %d\n", visit_thresh);
 	}
+	else if (key == 'c' || key_mod == 'c') {
+		--canny_thresh;
+		printf("Setting Canny threshold to: %d\n", canny_thresh);
+	}
+	else if (key == 'C' || key_mod == 'C') {
+		++canny_thresh;
+		printf("Setting Canny threshold to: %d\n", canny_thresh);
+	}
 	else if (key == 'n' || key_mod == 'n') {
 		--normal_thresh_deg;
 		printf("Setting normal threshold to: %f degrees\n", normal_thresh_deg);
@@ -880,6 +888,9 @@ void parseParams(int argc, char **argv) {
 	}
 #endif
 	if (argc > arg_id){
+		canny_thresh = atoi(argv[arg_id++]);
+	}
+	if (argc > arg_id){
 		enable_goal_publishing = atoi(argv[arg_id++]);
 	}
 	if (argc > arg_id){
@@ -909,6 +920,7 @@ void printParams() {
 #ifndef DISABLE_FLANN
 	printf("normal_thresh_deg: %f\n", normal_thresh_deg);
 #endif
+	printf("canny_thresh: %d\n", canny_thresh);
 	printf("enable_goal_publishing: %d\n", enable_goal_publishing);
 	printf("show_camera_location: %d\n", show_camera_location);
 	printf("gaussian_kernel_size: %d\n", gaussian_kernel_size);
