@@ -57,7 +57,7 @@ unsigned int use_local_counters = 0;
 unsigned int use_gaussian_counters = 0;
 bool use_boundary_detection = false;
 bool use_height_thresholding = false;
-int canny_thresh = 100;
+int canny_thresh = 350;
 bool show_camera_location = true;
 unsigned int gaussian_kernel_size = 3;
 int cam_radius = 2;
@@ -809,11 +809,11 @@ void showGridMap(unsigned int id) {
 		printf("Setting visit threshold to: %d\n", visit_thresh);
 	}
 	else if (key == 'c' || key_mod == 'c') {
-		--canny_thresh;
+		canny_thresh -= 10;
 		printf("Setting Canny threshold to: %d\n", canny_thresh);
 	}
 	else if (key == 'C' || key_mod == 'C') {
-		++canny_thresh;
+		canny_thresh += 10;
 		printf("Setting Canny threshold to: %d\n", canny_thresh);
 	}
 	else if (key == 'n' || key_mod == 'n') {
