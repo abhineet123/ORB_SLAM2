@@ -138,19 +138,19 @@ int main(int argc, char **argv){
 
 			++frame_id;
 
-//			int key = cv::waitKey(1);
-//			int key_mod = key % 256;
-//			if (key == 'r' || key_mod == 'r' || key == 'r' || key_mod == 'r') {
-//				printf("Resetting the SLAM system\n");
-//				SLAM.Shutdown();
-//				SLAM.reset(argv[2], show_viewer);
-//#ifdef COMPILEDWITHC11
-//				t1 = std::chrono::steady_clock::now();
-//#else
-//				t1 = std::chrono::monotonic_clock::now();
-//#endif
-//				frame_id = 0;
-//			}
+			//			int key = cv::waitKey(1);
+			//			int key_mod = key % 256;
+			//			if (key == 'r' || key_mod == 'r' || key == 'r' || key_mod == 'r') {
+			//				printf("Resetting the SLAM system\n");
+			//				SLAM.Shutdown();
+			//				SLAM.reset(argv[2], show_viewer);
+			//#ifdef COMPILEDWITHC11
+			//				t1 = std::chrono::steady_clock::now();
+			//#else
+			//				t1 = std::chrono::monotonic_clock::now();
+			//#endif
+			//				frame_id = 0;
+			//			}
 			//cv::imshow("Press escape to exit", im);
 			//if (cv::waitKey(1) == 27) {
 			//	break;
@@ -173,7 +173,7 @@ int main(int argc, char **argv){
 
 void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
 	ros::Publisher &pub_all_kf_and_pts, int frame_id) {
-	if (all_pts_pub_gap>0 && pub_count >= all_pts_pub_gap) {
+	if (all_pts_pub_gap > 0 && pub_count >= all_pts_pub_gap) {
 		pub_all_pts = true;
 		pub_count = 0;
 	}
@@ -189,8 +189,9 @@ void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
 		for (auto key_frame : key_frames) {
 			// pKF->SetPose(pKF->GetPose()*Two);
 
-			if (key_frame->isBad())
+			if (!key_frame || key_frame->isBad()) {
 				continue;
+			}
 
 			cv::Mat R = key_frame->GetRotation().t();
 			vector<float> q = ORB_SLAM2::Converter::toQuaternion(R);
@@ -230,14 +231,14 @@ void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
 				kf_pt_array.poses.push_back(curr_pt);
 				++n_pts;
 			}
-			kf_pt_array.poses[n_pts_id].position.x = (double) n_pts;
-			kf_pt_array.poses[n_pts_id].position.y = (double) n_pts;
-			kf_pt_array.poses[n_pts_id].position.z = (double) n_pts;
+			kf_pt_array.poses[n_pts_id].position.x = (double)n_pts;
+			kf_pt_array.poses[n_pts_id].position.y = (double)n_pts;
+			kf_pt_array.poses[n_pts_id].position.z = (double)n_pts;
 			++n_kf;
 		}
-		kf_pt_array.poses[0].position.x = (double) n_kf;
-		kf_pt_array.poses[0].position.y = (double) n_kf;
-		kf_pt_array.poses[0].position.z = (double) n_kf;
+		kf_pt_array.poses[0].position.x = (double)n_kf;
+		kf_pt_array.poses[0].position.y = (double)n_kf;
+		kf_pt_array.poses[0].position.z = (double)n_kf;
 		kf_pt_array.header.frame_id = "1";
 		kf_pt_array.header.seq = frame_id + 1;
 		printf("Publishing data for %u keyfranmes\n", n_kf);

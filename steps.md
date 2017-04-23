@@ -103,7 +103,8 @@ rosrun ORB_SLAM2 Monosub 10 2 10 -15 20 -10 0.55 0.50 1 5 0 1 0
 ---> running rosbag of recording: <!--- 
 rosbag play "/media/abhineet/Win 8/bags/2017-04-03-20-35-36.bag" -r 0.5
 rosbag play "/media/abhineet/Win 8/bags/2017-04-09-22-08-04.bag"
-rosbag play "/media/abhineet/Win 8/bags/2017-04-03-13-37-07.bag" -r 0.5
+---> faulty rosbag <!--- 
+rosbag play "/media/abhineet/Win 8/bags/2017-04-03-13-37-07.bag"
 ---> running rviz with preloaded map display and topic name: <!--- 
 rosrun rviz rviz -d grid_map.rviz
 rosrun rviz rviz -d navigation.rviz
@@ -114,12 +115,17 @@ roslaunch view_navigation.launch
 rosrun robot_pose_publisher robot_pose_publisher
 ---> record a rosbag of orbslam and grid mapping: <!--- 
 rosbag record pts_and_pose all_kf_and_pts map map_metadata move_base_simple/goal initialpose --output-name=rb_kitti00_gauss_height.bag
+rosbag record pts_and_pose all_kf_and_pts --output-name=rb_csc3_pub.bag
 ---> play this rosbag  <!--- 
 rosbag play ~/rb_kitti00_gauss_height.bag
 rosbag play ~/rb_kitti00_pub.bag
-rosbag play ~/rb_cam_csc3_pub.bag
+rosbag play ~/rb_csc3_pub.bag
+rosbag play ~/rb_csc3_pub_2.bag
+rosbag play ~/rb_csc3_pub_3.bag
 ---> record and play the subscriber rosbag  <!--- 
 rosbag record map map_metadata --output-name=rb_kitti00_sub.bag
-rosbag play ~/rb_kitti00_sub_f0.55_o0.50_l1_v5_g1_b1_h1_n45_c350..bag
+rosbag record map map_metadata --output-name=rb_csc_sub.bag
+rosbag play ~/rb_kitti00_sub_f0_55_o0_50_l1_v5_g1_b1_h1_n45_c350.bag
+rosbag play ~/rb_csc_sub_f0_55_o0_50_l1_v5_g1_b1_h1_n75_c350.bag
 ---> 
 
