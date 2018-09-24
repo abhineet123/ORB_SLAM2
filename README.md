@@ -8,7 +8,7 @@ Demos of KITTI seq 00 Odometry Dataset:
     <b>https://www.youtube.com/watch?v=FCd6p25131I</b>
 
 Demos of indoor scene:
-   <b>https://www.youtube.com/watch?v=FCd6p25131I</b>
+   <b>https://www.youtube.com/watch?v=HoE22wMhuKA</b>
 _____________________________________________________________________________
 _____________________________________________________________________________
 
