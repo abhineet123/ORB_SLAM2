@@ -152,7 +152,7 @@ int main(int argc, char **argv){
 
 	cout << "Press 'q' in the Frame Window to quit!" << endl;
 	while (cv::waitKey(0) != 'q') { }
-	
+
 	// Stop all threads
 	SLAM.Shutdown();
 	//geometry_msgs::PoseArray pt_array;
@@ -336,7 +336,7 @@ inline bool isInteger(const std::string & s){
 
 void LoadImages(const string &strPathToSequence, vector<string> &vstrImageFilenames, vector<double> &vTimestamps){
 	ifstream fTimes;
-	string strPathTimeFile = strPathToSequence + "/times.txt";
+	string strPathTimeFile = strPathToSequence + "/timestamps.txt";
 	fTimes.open(strPathTimeFile.c_str());
 	while (!fTimes.eof()){
 		string s;
@@ -350,7 +350,7 @@ void LoadImages(const string &strPathToSequence, vector<string> &vstrImageFilena
 		}
 	}
 
-	string strPrefixLeft = strPathToSequence + "/image_0/";
+	string strPrefixLeft = strPathToSequence + "/data/";
 
 	const int nTimes = vTimestamps.size();
 	vstrImageFilenames.resize(nTimes);
@@ -358,7 +358,7 @@ void LoadImages(const string &strPathToSequence, vector<string> &vstrImageFilena
 	for (int i = 0; i < nTimes; i++)
 	{
 		stringstream ss;
-		ss << setfill('0') << setw(6) << i;
+		ss << setfill('0') << setw(10) << i;
 		vstrImageFilenames[i] = strPrefixLeft + ss.str() + ".png";
 	}
 }
