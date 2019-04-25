@@ -150,7 +150,9 @@ int main(int argc, char **argv){
 	// Save camera trajectory
 	SLAM.SaveKeyFrameTrajectoryTUM("results//key_frame_trajectory.txt");
 
-
+	cout << "Press 'q' in the Frame Window to quit!" << endl;
+	while (cv::waitKey(0) != 'q') { }
+	
 	// Stop all threads
 	SLAM.Shutdown();
 	//geometry_msgs::PoseArray pt_array;
