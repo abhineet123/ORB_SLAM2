@@ -1,3 +1,5 @@
+#!/usr/bin/env python2
+
 import numpy as np
 import cv2
 import sys
@@ -54,8 +56,8 @@ def get_line_bresenham(start, end):
     return points
 
 
-seq_name = 'kitti_00'
-# seq_name = 'tum'
+#seq_name = 'kitti_00'
+seq_name = 'tum'
 # inverse of cell size
 scale_factor = 3
 resize_factor = 5
@@ -109,7 +111,6 @@ if not counters_loaded:
         keyframe_locations.append([keyframe_x, keyframe_y, keyframe_z])
         keyframe_quaternions.append([float(line_tokens[4]), float(line_tokens[5]),
                                      float(line_tokens[6]), float(line_tokens[7])])
-
     keyframe_locations_dict = dict(zip(keyframe_timestamps, keyframe_locations))
     keyframe_quaternions_dict = dict(zip(keyframe_timestamps, keyframe_quaternions))
     keyframe_locations = np.array(keyframe_locations)
