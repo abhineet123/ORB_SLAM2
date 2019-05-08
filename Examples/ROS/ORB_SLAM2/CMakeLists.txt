@@ -118,3 +118,10 @@ target_link_libraries(RGBD
 ${LIBS}
 )
 
+rosbuild_add_executable(RGBDpub
+src/ros_rgbd_pub.cc
+)
+
+target_link_libraries(RGBDpub
+${LIBS}
+)

@@ -9,6 +9,7 @@ Examples/ROS/ORB_SLAM2/MonoAR
 Examples/ROS/ORB_SLAM2/Monopub
 Examples/ROS/ORB_SLAM2/Monosub
 Examples/ROS/ORB_SLAM2/RGBD
+Examples/ROS/ORB_SLAM2/RGBDpub
 Examples/ROS/ORB_SLAM2/Stereo
 Examples/ROS/ORB_SLAM2/build/
 Examples/Stereo/stereo_euroc
