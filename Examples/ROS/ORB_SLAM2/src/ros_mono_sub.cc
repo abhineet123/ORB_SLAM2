@@ -451,11 +451,13 @@ void showGridMap(unsigned int id) {
 	{
 		cv::Mat dst;
 		cv::flip(grid_map_int, dst, 0);
+		cv::circle(dst, cv::Point(kf_pos_grid_x, h-kf_pos_grid_z), 2, cv::Scalar(128));
 		cv::imshow("grid_map_msg", dst);
 	}
 	{
 		cv::Mat dst;
 		cv::flip(grid_map_thresh_resized, dst, 0);
+		cv::circle(dst, cv::Point(kf_pos_grid_x*resize_factor, (h-kf_pos_grid_z)*resize_factor), 2*resize_factor, cv::Scalar(128));
 		cv::imshow("grid_map_thresh_resized", dst);
 	}
 
