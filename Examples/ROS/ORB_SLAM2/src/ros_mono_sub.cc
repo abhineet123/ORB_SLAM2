@@ -55,6 +55,7 @@ float kf_pos_x, kf_pos_z;
 int kf_pos_grid_x = 0, kf_pos_grid_z = 0;
 
 int g_camera_pos_grid_x, g_camera_pos_grid_z;
+int g_target_x, g_target_z;
 
 std::string param_str;
 
@@ -78,6 +79,7 @@ void processMapPt(const geometry_msgs::Point &curr_pt, cv::Mat &occupied,
 void processMapPts(const std::vector<geometry_msgs::Pose> &pts, unsigned int n_pts,
 	unsigned int start_id, int kf_pos_grid_x, int kf_pos_grid_z);
 void getGridMap();
+void onMouseHandle(int event, int x, int y, int flags, void* param);
 
 int main(int argc, char **argv){
 	ros::init(argc, argv, "Monosub");
@@ -142,6 +144,8 @@ int main(int argc, char **argv){
 	ros::Subscriber sub_cur_camera_pose = nodeHandler.subscribe("/cur_camera_pose", 1000, cameraPoseCallback);
 	pub_grid_map = nodeHandler.advertise<nav_msgs::OccupancyGrid>("grid_map", 1000);
 
+	cv::namedWindow("grid_map_thresh_resized", cv::WINDOW_AUTOSIZE);
+	cv::setMouseCallback("grid_map_thresh_resized", onMouseHandle);
 
 	//ros::Subscriber sub_cloud = nodeHandler.subscribe("cloud_in", 1000, cloudCallback);
 	//ros::Subscriber sub_kf = nodeHandler.subscribe("camera_pose", 1000, kfCallback);
@@ -153,6 +157,22 @@ int main(int argc, char **argv){
 	saveMap();
 
 	return 0;
+}
+
+void onMouseHandle(int event, int x, int y, int flags, void* param)
+{
+	switch (event)
+	{
+	case cv::EVENT_LBUTTONDOWN:
+		{
+			g_target_x = static_cast<int>(x / resize_factor);
+			g_target_z = static_cast<int>(h - y / resize_factor);
+		}
+		//printf("onMouseHandle: Set target: %d, %d (Current: %d, %d)\n", 
+		//		int(g_target_x*resize_factor), int(g_target_z*resize_factor), 
+		//		int(g_camera_pos_grid_x*resize_factor), int(g_camera_pos_grid_z*resize_factor));
+		break;
+	}
 }
 
 void cameraPoseCallback(const geometry_msgs::Pose::ConstPtr& cur_camera_pose)
@@ -483,6 +503,7 @@ void showGridMap(unsigned int id) {
 		cv::Mat dst;
 		cv::flip(grid_map_thresh_resized, dst, 0);
 		cv::circle(dst, cv::Point(g_camera_pos_grid_x*resize_factor, (h-g_camera_pos_grid_z)*resize_factor), 2*resize_factor, cv::Scalar(128));
+		cv::circle(dst, cv::Point(g_target_x*resize_factor, (h-g_target_z)*resize_factor), 2*resize_factor, cv::Scalar(0), cv::FILLED);
 		cv::imshow("grid_map_thresh_resized", dst);
 	}
 
