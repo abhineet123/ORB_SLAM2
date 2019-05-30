@@ -49,21 +49,22 @@
 using namespace std;
 
 void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
-	         ros::Publisher &pub_all_kf_and_pts, int frame_id);
+			 ros::Publisher &pub_all_kf_and_pts, ros::Publisher &pub_cur_camera_pose, int frame_id); 
 
 class ImageGrabber
 {
 public:
 	ImageGrabber(ORB_SLAM2::System &_SLAM, ros::Publisher &_pub_pts_and_pose,
-		         ros::Publisher &_pub_all_kf_and_pts) :
+				 ros::Publisher &_pub_all_kf_and_pts, ros::Publisher &_pub_cur_camera_pose) :
 		SLAM(_SLAM), pub_pts_and_pose(_pub_pts_and_pose),
-		pub_all_kf_and_pts(_pub_all_kf_and_pts), frame_id(0) { }
+		pub_all_kf_and_pts(_pub_all_kf_and_pts), pub_cur_camera_pose(_pub_cur_camera_pose), frame_id(0){}
 
     void GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const sensor_msgs::ImageConstPtr& msgD);
 
 	ORB_SLAM2::System &SLAM;
 	ros::Publisher &pub_pts_and_pose;
 	ros::Publisher &pub_all_kf_and_pts;
+	ros::Publisher &pub_cur_camera_pose;
 	int frame_id;
 };
 
@@ -85,8 +86,9 @@ int main(int argc, char **argv)
 	ros::NodeHandle nodeHandler;
 	ros::Publisher pub_pts_and_pose = nodeHandler.advertise<geometry_msgs::PoseArray>("pts_and_pose", 1000);
 	ros::Publisher pub_all_kf_and_pts = nodeHandler.advertise<geometry_msgs::PoseArray>("all_kf_and_pts", 1000);
+	ros::Publisher pub_cur_camera_pose = nodeHandler.advertise<geometry_msgs::Pose>("/cur_camera_pose", 1000);
 
-    ImageGrabber igb(SLAM, pub_pts_and_pose, pub_all_kf_and_pts);
+    ImageGrabber igb(SLAM, pub_pts_and_pose, pub_all_kf_and_pts, pub_cur_camera_pose);
 
     ros::NodeHandle nh;
 
@@ -142,12 +144,12 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
     }
 
     SLAM.TrackRGBD(cv_ptrRGB->image,cv_ptrD->image,cv_ptrRGB->header.stamp.toSec());
-   	publish(SLAM, pub_pts_and_pose, pub_all_kf_and_pts, frame_id);
+   	publish(SLAM, pub_pts_and_pose, pub_all_kf_and_pts, pub_cur_camera_pose, frame_id);
 	++frame_id;
 }
 
 void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
-	ros::Publisher &pub_all_kf_and_pts, int frame_id)
+			 ros::Publisher &pub_all_kf_and_pts, ros::Publisher &pub_cur_camera_pose, int frame_id)
 {
     static int all_pts_pub_gap = 0;
     static bool pub_all_pts = false;
@@ -311,5 +313,27 @@ void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
 		pt_array.header.seq = frame_id + 1;
 		pub_pts_and_pose.publish(pt_array);
 		//pub_kf.publish(camera_pose);
+	}
+	// Publish current camera pose
+	if (!SLAM.getTracker()->mCurrentFrame.mTcw.empty())
+	{
+		cv::Mat Tcw = SLAM.getTracker()->mCurrentFrame.mTcw; 
+		cv::Mat Rwc = Tcw.rowRange(0, 3).colRange(0, 3).t();
+		cv::Mat twc = -Rwc*Tcw.rowRange(0, 3).col(3);
+
+		vector<float> q = ORB_SLAM2::Converter::toQuaternion(Rwc);
+
+		geometry_msgs::Pose camera_pose;
+
+		camera_pose.position.x = twc.at<float>(0);
+		camera_pose.position.y = twc.at<float>(1);
+		camera_pose.position.z = twc.at<float>(2);
+
+		camera_pose.orientation.x = q[0];
+		camera_pose.orientation.y = q[1];
+		camera_pose.orientation.z = q[2];
+		camera_pose.orientation.w = q[3];
+
+		pub_cur_camera_pose.publish(camera_pose);
 	}
 }
