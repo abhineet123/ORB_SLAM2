@@ -52,7 +52,9 @@ ros::Publisher pub_grid_map;
 nav_msgs::OccupancyGrid grid_map_msg;
 
 float kf_pos_x, kf_pos_z;
-int kf_pos_grid_x, kf_pos_grid_z;
+int kf_pos_grid_x = 0, kf_pos_grid_z = 0;
+
+int g_camera_pos_grid_x, g_camera_pos_grid_z;
 
 std::string param_str;
 
@@ -63,6 +65,7 @@ void resetGridMap(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose);
 void cloudCallback(const sensor_msgs::PointCloud2::ConstPtr& pt_cloud);
 void kfCallback(const geometry_msgs::PoseStamped::ConstPtr& camera_pose);
 void saveMap(unsigned int id = 0);
+void cameraPoseCallback(const geometry_msgs::Pose::ConstPtr& cur_camera_pose);
 void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose);
 void loopClosingCallback(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts);
 void parseParams(int argc, char **argv);
@@ -136,6 +139,7 @@ int main(int argc, char **argv){
 	ros::NodeHandle nodeHandler;
 	ros::Subscriber sub_pts_and_pose = nodeHandler.subscribe("pts_and_pose", 1000, ptCallback);
 	ros::Subscriber sub_all_kf_and_pts = nodeHandler.subscribe("all_kf_and_pts", 1000, loopClosingCallback);
+	ros::Subscriber sub_cur_camera_pose = nodeHandler.subscribe("/cur_camera_pose", 1000, cameraPoseCallback);
 	pub_grid_map = nodeHandler.advertise<nav_msgs::OccupancyGrid>("grid_map", 1000);
 
 
@@ -149,6 +153,27 @@ int main(int argc, char **argv){
 	saveMap();
 
 	return 0;
+}
+
+void cameraPoseCallback(const geometry_msgs::Pose::ConstPtr& cur_camera_pose)
+{
+	const geometry_msgs::Point &location = cur_camera_pose->position;
+	const geometry_msgs::Quaternion &orientation = cur_camera_pose->orientation;
+
+	const float camera_pos_x = location.x*scale_factor;
+	const float camera_pos_z = location.z*scale_factor;
+
+	const int camera_pos_grid_x = int(floor((camera_pos_x - grid_min_x) * norm_factor_x));
+	const int camera_pos_grid_z = int(floor((camera_pos_z - grid_min_z) * norm_factor_z));
+
+	if (camera_pos_grid_x < 0 || camera_pos_grid_x >= w || 
+		camera_pos_grid_z < 0 || camera_pos_grid_z >= h)
+		return;
+
+	g_camera_pos_grid_x = camera_pos_grid_x;
+	g_camera_pos_grid_z = camera_pos_grid_z;
+
+	showGridMap(0);
 }
 
 void cloudCallback(const sensor_msgs::PointCloud2::ConstPtr& pt_cloud){
@@ -451,13 +476,13 @@ void showGridMap(unsigned int id) {
 	{
 		cv::Mat dst;
 		cv::flip(grid_map_int, dst, 0);
-		cv::circle(dst, cv::Point(kf_pos_grid_x, h-kf_pos_grid_z), 2, cv::Scalar(128));
+		cv::circle(dst, cv::Point(g_camera_pos_grid_x, h-g_camera_pos_grid_z), 2, cv::Scalar(128));
 		cv::imshow("grid_map_msg", dst);
 	}
 	{
 		cv::Mat dst;
 		cv::flip(grid_map_thresh_resized, dst, 0);
-		cv::circle(dst, cv::Point(kf_pos_grid_x*resize_factor, (h-kf_pos_grid_z)*resize_factor), 2*resize_factor, cv::Scalar(128));
+		cv::circle(dst, cv::Point(g_camera_pos_grid_x*resize_factor, (h-g_camera_pos_grid_z)*resize_factor), 2*resize_factor, cv::Scalar(128));
 		cv::imshow("grid_map_thresh_resized", dst);
 	}
 
