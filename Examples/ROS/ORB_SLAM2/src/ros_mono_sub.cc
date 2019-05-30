@@ -439,8 +439,21 @@ void getGridMap() {
 	cv::resize(grid_map_thresh, grid_map_thresh_resized, grid_map_thresh_resized.size());
 }
 void showGridMap(unsigned int id) {
-	cv::imshow("grid_map_msg", cv::Mat(h, w, CV_8SC1, (char*)(grid_map_msg.data.data())));
-	cv::imshow("grid_map_thresh_resized", grid_map_thresh_resized);
+    //cv::imshow("grid_map_msg", cv::Mat(h, w, CV_8SC1, (char*)(grid_map_msg.data.data())));
+    //cv::imshow("grid_map_thresh_resized", grid_map_thresh_resized);
+
+	// Flip y axis to align coordinate bewteen image and map
+	{
+		cv::Mat dst;
+		cv::flip(grid_map_int, dst, 0);
+		cv::imshow("grid_map_msg", dst);
+	}
+	{
+		cv::Mat dst;
+		cv::flip(grid_map_thresh_resized, dst, 0);
+		cv::imshow("grid_map_thresh_resized", dst);
+	}
+
 	//cv::imshow("grid_map", grid_map);
 	int key = cv::waitKey(1) % 256;
 	if (key == 27) {
