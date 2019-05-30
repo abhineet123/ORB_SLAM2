@@ -4,6 +4,7 @@
 #include<algorithm>
 #include<fstream>
 #include<chrono>
+#include<iterator>
 
 #include<ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
@@ -53,6 +54,8 @@ nav_msgs::OccupancyGrid grid_map_msg;
 float kf_pos_x, kf_pos_z;
 int kf_pos_grid_x, kf_pos_grid_z;
 
+std::string param_str;
+
 using namespace std;
 
 void updateGridMap(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose);
@@ -77,8 +80,19 @@ int main(int argc, char **argv){
 	ros::init(argc, argv, "Monosub");
 	ros::start();
 
+	printf("Input %d params\n", argc - 1);
 	parseParams(argc, argv);
 	printParams();
+
+	{
+		const std::vector<float> params = {
+		        scale_factor, resize_factor, cloud_max_x, cloud_min_x,
+		        cloud_max_z, cloud_min_z, free_thresh, occupied_thresh,
+		        use_local_counters, visit_thresh };
+		std::ostringstream oss;
+		std::copy(params.cbegin(), params.cend(), ostream_iterator<float>(oss, "_"));
+		param_str = oss.str();
+	}
 
 	grid_max_x = cloud_max_x*scale_factor;
 	grid_min_x = cloud_min_x*scale_factor;
@@ -149,14 +163,14 @@ void saveMap(unsigned int id) {
 	printf("saving maps with id: %u\n", id);
 	mkdir("results", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 	if (id > 0) {
-		cv::imwrite("results//grid_map_" + to_string(id) + ".jpg", grid_map);
-		cv::imwrite("results//grid_map_thresh_" + to_string(id) + ".jpg", grid_map_thresh);
-		cv::imwrite("results//grid_map_thresh_resized" + to_string(id) + ".jpg", grid_map_thresh_resized);
+		cv::imwrite("results/grid_map_" + to_string(id) + "_" + param_str + ".jpg", grid_map);
+		cv::imwrite("results/grid_map_thresh_" + to_string(id) + "_" + param_str + ".jpg", grid_map_thresh);
+		cv::imwrite("results/grid_map_thresh_resized_" + to_string(id) + "_" + param_str + ".jpg", grid_map_thresh_resized);
 	}
 	else {
-		cv::imwrite("results//grid_map.jpg", grid_map);
-		cv::imwrite("results//grid_map_thresh.jpg", grid_map_thresh);
-		cv::imwrite("results//grid_map_thresh_resized.jpg", grid_map_thresh_resized);
+		cv::imwrite("results/grid_map_" + param_str + ".jpg", grid_map);
+		cv::imwrite("results/grid_map_thresh_" + param_str + ".jpg", grid_map_thresh);
+		cv::imwrite("results/grid_map_thresh_resized_" + param_str + ".jpg", grid_map_thresh_resized);
 	}
 
 }
