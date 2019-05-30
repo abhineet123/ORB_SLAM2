@@ -160,17 +160,22 @@ void kfCallback(const geometry_msgs::PoseStamped::ConstPtr& camera_pose){
 		camera_pose->header.seq);
 }
 void saveMap(unsigned int id) {
+	cv::Mat grid_map_int_fliped, grid_map_thresh_fliped, grid_map_thresh_resized_fliped;
+	cv::flip(grid_map_int, grid_map_int_fliped, 0);
+	cv::flip(grid_map_thresh, grid_map_thresh_fliped, 0);
+	cv::flip(grid_map_thresh_resized, grid_map_thresh_resized_fliped, 0);
+
 	printf("saving maps with id: %u\n", id);
 	mkdir("results", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 	if (id > 0) {
-		cv::imwrite("results/grid_map_" + to_string(id) + "_" + param_str + ".jpg", grid_map);
-		cv::imwrite("results/grid_map_thresh_" + to_string(id) + "_" + param_str + ".jpg", grid_map_thresh);
-		cv::imwrite("results/grid_map_thresh_resized_" + to_string(id) + "_" + param_str + ".jpg", grid_map_thresh_resized);
+		cv::imwrite("results/grid_map_" + to_string(id) + "_" + param_str + ".jpg", grid_map_int_fliped);
+		cv::imwrite("results/grid_map_thresh_" + to_string(id) + "_" + param_str + ".jpg", grid_map_thresh_fliped);
+		cv::imwrite("results/grid_map_thresh_resized_" + to_string(id) + "_" + param_str + ".jpg", grid_map_thresh_resized_fliped);
 	}
 	else {
-		cv::imwrite("results/grid_map_" + param_str + ".jpg", grid_map);
-		cv::imwrite("results/grid_map_thresh_" + param_str + ".jpg", grid_map_thresh);
-		cv::imwrite("results/grid_map_thresh_resized_" + param_str + ".jpg", grid_map_thresh_resized);
+		cv::imwrite("results/grid_map_" + param_str + ".jpg", grid_map_int_fliped);
+		cv::imwrite("results/grid_map_thresh_" + param_str + ".jpg", grid_map_thresh_fliped);
+		cv::imwrite("results/grid_map_thresh_resized_" + param_str + ".jpg", grid_map_thresh_resized_fliped);
 	}
 
 }
