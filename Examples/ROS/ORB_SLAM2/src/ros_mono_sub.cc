@@ -56,6 +56,7 @@ int kf_pos_grid_x = 0, kf_pos_grid_z = 0;
 
 int g_camera_pos_grid_x, g_camera_pos_grid_z;
 int g_target_x, g_target_z;
+bool g_target_is_set = false;
 
 std::string param_str;
 
@@ -164,9 +165,16 @@ void onMouseHandle(int event, int x, int y, int flags, void* param)
 	switch (event)
 	{
 	case cv::EVENT_LBUTTONDOWN:
+		g_target_x = static_cast<int>(x / resize_factor);
+		g_target_z = static_cast<int>(h - y / resize_factor);
+		if (g_target_x < 0 || g_target_x >= w ||
+			g_target_z < 0 || g_target_z >= h)
 		{
-			g_target_x = static_cast<int>(x / resize_factor);
-			g_target_z = static_cast<int>(h - y / resize_factor);
+			g_target_is_set = false;
+		}
+		else
+		{
+			g_target_is_set = true;
 		}
 		//printf("onMouseHandle: Set target: %d, %d (Current: %d, %d)\n", 
 		//		int(g_target_x*resize_factor), int(g_target_z*resize_factor), 
