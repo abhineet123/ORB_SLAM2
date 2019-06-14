@@ -1,3 +1,5 @@
+#!/usr/bin/env python2
+
 import numpy as np
 import cv2
 import sys
@@ -53,23 +55,27 @@ def get_line_bresenham(start, end):
         points.reverse()
     return points
 
+if len(sys.argv) < 2:
+    print('Usage: %s <directory of result>' % (sys.argv[0]))
+    sys.exit(-1)
 
-seq_name = 'kitti_00'
-# seq_name = 'tum'
+result_folder = sys.argv[1]
+if result_folder[-1] != '/':
+    result_folder += '/'
+
 # inverse of cell size
 scale_factor = 3
 resize_factor = 5
 filter_ground_points = 0
 load_counters = 0
 
-point_cloud_fname = '{:s}_map_pts_and_keyframes.txt'.format(seq_name)
-keyframe_trajectory_fname = '{:s}_key_frame_trajectory.txt'.format(seq_name)
-visit_counter_fname = '{:s}_filtered_{:d}_scale_{:d}_visit_counter.txt'.format(
-    seq_name, filter_ground_points, scale_factor)
-occupied_counter_fname = '{:s}_filtered_{:d}_scale_{:d}_occupied_counter.txt'.format(
-    seq_name, filter_ground_points, scale_factor)
+point_cloud_fname = result_folder + 'map_pts_and_keyframes.txt'
+keyframe_trajectory_fname = result_folder + 'key_frame_trajectory.txt'
+visit_counter_fname = result_folder + 'filtered_{:d}_scale_{:d}_visit_counter.txt'.format(
+    filter_ground_points, scale_factor)
+occupied_counter_fname = result_folder + 'filtered_{:d}_scale_{:d}_occupied_counter.txt'.format(
+    filter_ground_points, scale_factor)
 
-print 'seq_name: ', seq_name
 print 'scale_factor: ', scale_factor
 print 'resize_factor: ', resize_factor
 print 'filter_ground_points: ', filter_ground_points
@@ -109,7 +115,6 @@ if not counters_loaded:
         keyframe_locations.append([keyframe_x, keyframe_y, keyframe_z])
         keyframe_quaternions.append([float(line_tokens[4]), float(line_tokens[5]),
                                      float(line_tokens[6]), float(line_tokens[7])])
-
     keyframe_locations_dict = dict(zip(keyframe_timestamps, keyframe_locations))
     keyframe_quaternions_dict = dict(zip(keyframe_timestamps, keyframe_quaternions))
     keyframe_locations = np.array(keyframe_locations)
@@ -300,8 +305,8 @@ if resize_factor != 1:
 else:
     grid_map_resized = grid_map_thresh
 
-out_fname = 'grid_map_{:s}_filtered_{:d}_scale_{:d}_resize_{:d}_{:.2f}_{:.2f}'.format(
-    seq_name, filter_ground_points, scale_factor, resize_factor, occupied_thresh, free_thresh)
+out_fname = result_folder + 'grid_map_filtered_{:d}_scale_{:d}_resize_{:d}_{:.2f}_{:.2f}'.format(
+    filter_ground_points, scale_factor, resize_factor, occupied_thresh, free_thresh)
 cv2.imwrite('{:s}.pgm'.format(out_fname), grid_map_resized)
 cv2.imshow(out_fname, grid_map_resized)
 cv2.waitKey(0)

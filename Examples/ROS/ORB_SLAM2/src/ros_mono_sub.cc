@@ -4,6 +4,7 @@
 #include<algorithm>
 #include<fstream>
 #include<chrono>
+#include<iterator>
 
 #include<ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
@@ -51,7 +52,13 @@ ros::Publisher pub_grid_map;
 nav_msgs::OccupancyGrid grid_map_msg;
 
 float kf_pos_x, kf_pos_z;
-int kf_pos_grid_x, kf_pos_grid_z;
+int kf_pos_grid_x = 0, kf_pos_grid_z = 0;
+
+int g_camera_pos_grid_x, g_camera_pos_grid_z;
+int g_target_x, g_target_z;
+bool g_target_is_set = false;
+
+std::string param_str;
 
 using namespace std;
 
@@ -60,6 +67,7 @@ void resetGridMap(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose);
 void cloudCallback(const sensor_msgs::PointCloud2::ConstPtr& pt_cloud);
 void kfCallback(const geometry_msgs::PoseStamped::ConstPtr& camera_pose);
 void saveMap(unsigned int id = 0);
+void cameraPoseCallback(const geometry_msgs::Pose::ConstPtr& cur_camera_pose);
 void ptCallback(const geometry_msgs::PoseArray::ConstPtr& pts_and_pose);
 void loopClosingCallback(const geometry_msgs::PoseArray::ConstPtr& all_kf_and_pts);
 void parseParams(int argc, char **argv);
@@ -72,13 +80,25 @@ void processMapPt(const geometry_msgs::Point &curr_pt, cv::Mat &occupied,
 void processMapPts(const std::vector<geometry_msgs::Pose> &pts, unsigned int n_pts,
 	unsigned int start_id, int kf_pos_grid_x, int kf_pos_grid_z);
 void getGridMap();
+void onMouseHandle(int event, int x, int y, int flags, void* param);
 
 int main(int argc, char **argv){
 	ros::init(argc, argv, "Monosub");
 	ros::start();
 
+	printf("Input %d params\n", argc - 1);
 	parseParams(argc, argv);
 	printParams();
+
+	{
+		const std::vector<float> params = {
+		        scale_factor, resize_factor, cloud_max_x, cloud_min_x,
+		        cloud_max_z, cloud_min_z, free_thresh, occupied_thresh,
+		        use_local_counters, visit_thresh };
+		std::ostringstream oss;
+		std::copy(params.cbegin(), params.cend(), ostream_iterator<float>(oss, "_"));
+		param_str = oss.str();
+	}
 
 	grid_max_x = cloud_max_x*scale_factor;
 	grid_min_x = cloud_min_x*scale_factor;
@@ -122,8 +142,11 @@ int main(int argc, char **argv){
 	ros::NodeHandle nodeHandler;
 	ros::Subscriber sub_pts_and_pose = nodeHandler.subscribe("pts_and_pose", 1000, ptCallback);
 	ros::Subscriber sub_all_kf_and_pts = nodeHandler.subscribe("all_kf_and_pts", 1000, loopClosingCallback);
+	ros::Subscriber sub_cur_camera_pose = nodeHandler.subscribe("/cur_camera_pose", 1000, cameraPoseCallback);
 	pub_grid_map = nodeHandler.advertise<nav_msgs::OccupancyGrid>("grid_map", 1000);
 
+	cv::namedWindow("grid_map_thresh_resized", cv::WINDOW_AUTOSIZE);
+	cv::setMouseCallback("grid_map_thresh_resized", onMouseHandle);
 
 	//ros::Subscriber sub_cloud = nodeHandler.subscribe("cloud_in", 1000, cloudCallback);
 	//ros::Subscriber sub_kf = nodeHandler.subscribe("camera_pose", 1000, kfCallback);
@@ -137,6 +160,50 @@ int main(int argc, char **argv){
 	return 0;
 }
 
+void onMouseHandle(int event, int x, int y, int flags, void* param)
+{
+	switch (event)
+	{
+	case cv::EVENT_LBUTTONDOWN:
+		g_target_x = static_cast<int>(x / resize_factor);
+		g_target_z = static_cast<int>(h - y / resize_factor);
+		if (g_target_x < 0 || g_target_x >= w ||
+			g_target_z < 0 || g_target_z >= h)
+		{
+			g_target_is_set = false;
+		}
+		else
+		{
+			g_target_is_set = true;
+		}
+		//printf("onMouseHandle: Set target: %d, %d (Current: %d, %d)\n", 
+		//		int(g_target_x*resize_factor), int(g_target_z*resize_factor), 
+		//		int(g_camera_pos_grid_x*resize_factor), int(g_camera_pos_grid_z*resize_factor));
+		break;
+	}
+}
+
+void cameraPoseCallback(const geometry_msgs::Pose::ConstPtr& cur_camera_pose)
+{
+	const geometry_msgs::Point &location = cur_camera_pose->position;
+	const geometry_msgs::Quaternion &orientation = cur_camera_pose->orientation;
+
+	const float camera_pos_x = location.x*scale_factor;
+	const float camera_pos_z = location.z*scale_factor;
+
+	const int camera_pos_grid_x = int(floor((camera_pos_x - grid_min_x) * norm_factor_x));
+	const int camera_pos_grid_z = int(floor((camera_pos_z - grid_min_z) * norm_factor_z));
+
+	if (camera_pos_grid_x < 0 || camera_pos_grid_x >= w || 
+		camera_pos_grid_z < 0 || camera_pos_grid_z >= h)
+		return;
+
+	g_camera_pos_grid_x = camera_pos_grid_x;
+	g_camera_pos_grid_z = camera_pos_grid_z;
+
+	showGridMap(0);
+}
+
 void cloudCallback(const sensor_msgs::PointCloud2::ConstPtr& pt_cloud){
 	ROS_INFO("I heard: [%s]{%d}", pt_cloud->header.frame_id.c_str(),
 		pt_cloud->header.seq);
@@ -146,17 +213,22 @@ void kfCallback(const geometry_msgs::PoseStamped::ConstPtr& camera_pose){
 		camera_pose->header.seq);
 }
 void saveMap(unsigned int id) {
+	cv::Mat grid_map_int_fliped, grid_map_thresh_fliped, grid_map_thresh_resized_fliped;
+	cv::flip(grid_map_int, grid_map_int_fliped, 0);
+	cv::flip(grid_map_thresh, grid_map_thresh_fliped, 0);
+	cv::flip(grid_map_thresh_resized, grid_map_thresh_resized_fliped, 0);
+
 	printf("saving maps with id: %u\n", id);
 	mkdir("results", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 	if (id > 0) {
-		cv::imwrite("results//grid_map_" + to_string(id) + ".jpg", grid_map);
-		cv::imwrite("results//grid_map_thresh_" + to_string(id) + ".jpg", grid_map_thresh);
-		cv::imwrite("results//grid_map_thresh_resized" + to_string(id) + ".jpg", grid_map_thresh_resized);
+		cv::imwrite("results/grid_map_" + to_string(id) + "_" + param_str + ".jpg", grid_map_int_fliped);
+		cv::imwrite("results/grid_map_thresh_" + to_string(id) + "_" + param_str + ".jpg", grid_map_thresh_fliped);
+		cv::imwrite("results/grid_map_thresh_resized_" + to_string(id) + "_" + param_str + ".jpg", grid_map_thresh_resized_fliped);
 	}
 	else {
-		cv::imwrite("results//grid_map.jpg", grid_map);
-		cv::imwrite("results//grid_map_thresh.jpg", grid_map_thresh);
-		cv::imwrite("results//grid_map_thresh_resized.jpg", grid_map_thresh_resized);
+		cv::imwrite("results/grid_map_" + param_str + ".jpg", grid_map_int_fliped);
+		cv::imwrite("results/grid_map_thresh_" + param_str + ".jpg", grid_map_thresh_fliped);
+		cv::imwrite("results/grid_map_thresh_resized_" + param_str + ".jpg", grid_map_thresh_resized_fliped);
 	}
 
 }
@@ -425,8 +497,24 @@ void getGridMap() {
 	cv::resize(grid_map_thresh, grid_map_thresh_resized, grid_map_thresh_resized.size());
 }
 void showGridMap(unsigned int id) {
-	cv::imshow("grid_map_msg", cv::Mat(h, w, CV_8SC1, (char*)(grid_map_msg.data.data())));
-	cv::imshow("grid_map_thresh_resized", grid_map_thresh_resized);
+    //cv::imshow("grid_map_msg", cv::Mat(h, w, CV_8SC1, (char*)(grid_map_msg.data.data())));
+    //cv::imshow("grid_map_thresh_resized", grid_map_thresh_resized);
+
+	// Flip y axis to align coordinate bewteen image and map
+	{
+		cv::Mat dst;
+		cv::flip(grid_map_int, dst, 0);
+		cv::circle(dst, cv::Point(g_camera_pos_grid_x, h-g_camera_pos_grid_z), 2, cv::Scalar(128));
+		cv::imshow("grid_map_msg", dst);
+	}
+	{
+		cv::Mat dst;
+		cv::flip(grid_map_thresh_resized, dst, 0);
+		cv::circle(dst, cv::Point(g_camera_pos_grid_x*resize_factor, (h-g_camera_pos_grid_z)*resize_factor), 2*resize_factor, cv::Scalar(128));
+		cv::circle(dst, cv::Point(g_target_x*resize_factor, (h-g_target_z)*resize_factor), 2*resize_factor, cv::Scalar(0), cv::FILLED);
+		cv::imshow("grid_map_thresh_resized", dst);
+	}
+
 	//cv::imshow("grid_map", grid_map);
 	int key = cv::waitKey(1) % 256;
 	if (key == 27) {

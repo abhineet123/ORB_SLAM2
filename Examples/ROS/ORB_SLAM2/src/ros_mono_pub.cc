@@ -60,20 +60,21 @@ void LoadImages(const string &strSequence, vector<string> &vstrImageFilenames,
 	vector<double> &vTimestamps);
 inline bool isInteger(const std::string & s);
 void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
-	ros::Publisher &pub_all_kf_and_pts, int frame_id);
+			 ros::Publisher &pub_all_kf_and_pts, ros::Publisher &pub_cur_camera_pose, int frame_id);
 
 class ImageGrabber{
 public:
 	ImageGrabber(ORB_SLAM2::System &_SLAM, ros::Publisher &_pub_pts_and_pose,
-		ros::Publisher &_pub_all_kf_and_pts) :
+		ros::Publisher &_pub_all_kf_and_pts, ros::Publisher &_pub_cur_camera_pose) :
 		SLAM(_SLAM), pub_pts_and_pose(_pub_pts_and_pose),
-		pub_all_kf_and_pts(_pub_all_kf_and_pts), frame_id(0){}
+		pub_all_kf_and_pts(_pub_all_kf_and_pts), pub_cur_camera_pose(_pub_cur_camera_pose), frame_id(0){}
 
 	void GrabImage(const sensor_msgs::ImageConstPtr& msg);
 
 	ORB_SLAM2::System &SLAM;
 	ros::Publisher &pub_pts_and_pose;
 	ros::Publisher &pub_all_kf_and_pts;
+	ros::Publisher &pub_cur_camera_pose;
 	int frame_id;
 };
 bool parseParams(int argc, char **argv);
@@ -94,8 +95,9 @@ int main(int argc, char **argv){
 	//ros::Publisher pub_cloud = nodeHandler.advertise<sensor_msgs::PointCloud2>("cloud_in", 1000);
 	ros::Publisher pub_pts_and_pose = nodeHandler.advertise<geometry_msgs::PoseArray>("pts_and_pose", 1000);
 	ros::Publisher pub_all_kf_and_pts = nodeHandler.advertise<geometry_msgs::PoseArray>("all_kf_and_pts", 1000);
+	ros::Publisher pub_cur_camera_pose = nodeHandler.advertise<geometry_msgs::Pose>("/cur_camera_pose", 1000);
 	if (read_from_topic) {
-		ImageGrabber igb(SLAM, pub_pts_and_pose, pub_all_kf_and_pts);
+		ImageGrabber igb(SLAM, pub_pts_and_pose, pub_all_kf_and_pts, pub_cur_camera_pose);
 		ros::Subscriber sub = nodeHandler.subscribe(image_topic, 1, &ImageGrabber::GrabImage, &igb);
 		ros::spin();
 	}
@@ -131,7 +133,7 @@ int main(int argc, char **argv){
 			// Pass the image to the SLAM system
 			cv::Mat curr_pose = SLAM.TrackMonocular(im, tframe);
 
-			publish(SLAM, pub_pts_and_pose, pub_all_kf_and_pts, frame_id);
+			publish(SLAM, pub_pts_and_pose, pub_all_kf_and_pts, pub_cur_camera_pose, frame_id);
 
 			//cv::imshow("Press escape to exit", im);
 			//if (cv::waitKey(1) == 27) {
@@ -150,6 +152,8 @@ int main(int argc, char **argv){
 	// Save camera trajectory
 	SLAM.SaveKeyFrameTrajectoryTUM("results//key_frame_trajectory.txt");
 
+	cout << "Press 'q' in the Frame Window to quit!" << endl;
+	while (cv::waitKey(0) != 'q') { }
 
 	// Stop all threads
 	SLAM.Shutdown();
@@ -161,7 +165,7 @@ int main(int argc, char **argv){
 }
 
 void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
-	ros::Publisher &pub_all_kf_and_pts, int frame_id) {
+			 ros::Publisher &pub_all_kf_and_pts, ros::Publisher &pub_cur_camera_pose, int frame_id) {
 	if (all_pts_pub_gap>0 && pub_count >= all_pts_pub_gap) {
 		pub_all_pts = true;
 		pub_count = 0;
@@ -321,6 +325,28 @@ void publish(ORB_SLAM2::System &SLAM, ros::Publisher &pub_pts_and_pose,
 		pub_pts_and_pose.publish(pt_array);
 		//pub_kf.publish(camera_pose);
 	}
+	// Publish current camera pose
+	if (!SLAM.getTracker()->mCurrentFrame.mTcw.empty())
+	{
+		cv::Mat Tcw = SLAM.getTracker()->mCurrentFrame.mTcw; 
+		cv::Mat Rwc = Tcw.rowRange(0, 3).colRange(0, 3).t();
+		cv::Mat twc = -Rwc*Tcw.rowRange(0, 3).col(3);
+
+		vector<float> q = ORB_SLAM2::Converter::toQuaternion(Rwc);
+
+		geometry_msgs::Pose camera_pose;
+
+		camera_pose.position.x = twc.at<float>(0);
+		camera_pose.position.y = twc.at<float>(1);
+		camera_pose.position.z = twc.at<float>(2);
+
+		camera_pose.orientation.x = q[0];
+		camera_pose.orientation.y = q[1];
+		camera_pose.orientation.z = q[2];
+		camera_pose.orientation.w = q[3];
+
+		pub_cur_camera_pose.publish(camera_pose);
+	}
 }
 
 inline bool isInteger(const std::string & s){
@@ -334,7 +360,7 @@ inline bool isInteger(const std::string & s){
 
 void LoadImages(const string &strPathToSequence, vector<string> &vstrImageFilenames, vector<double> &vTimestamps){
 	ifstream fTimes;
-	string strPathTimeFile = strPathToSequence + "/times.txt";
+	string strPathTimeFile = strPathToSequence + "/timestamps.txt";
 	fTimes.open(strPathTimeFile.c_str());
 	while (!fTimes.eof()){
 		string s;
@@ -348,7 +374,7 @@ void LoadImages(const string &strPathToSequence, vector<string> &vstrImageFilena
 		}
 	}
 
-	string strPrefixLeft = strPathToSequence + "/image_0/";
+	string strPrefixLeft = strPathToSequence + "/data/";
 
 	const int nTimes = vTimestamps.size();
 	vstrImageFilenames.resize(nTimes);
@@ -356,7 +382,7 @@ void LoadImages(const string &strPathToSequence, vector<string> &vstrImageFilena
 	for (int i = 0; i < nTimes; i++)
 	{
 		stringstream ss;
-		ss << setfill('0') << setw(6) << i;
+		ss << setfill('0') << setw(10) << i;
 		vstrImageFilenames[i] = strPrefixLeft + ss.str() + ".png";
 	}
 }
@@ -372,7 +398,7 @@ void ImageGrabber::GrabImage(const sensor_msgs::ImageConstPtr& msg){
 		return;
 	}
 	SLAM.TrackMonocular(cv_ptr->image, cv_ptr->header.stamp.toSec());
-	publish(SLAM, pub_pts_and_pose, pub_all_kf_and_pts, frame_id);
+	publish(SLAM, pub_pts_and_pose, pub_all_kf_and_pts, pub_cur_camera_pose, frame_id);
 	++frame_id;
 }
 
